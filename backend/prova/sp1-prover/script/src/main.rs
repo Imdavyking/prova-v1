@@ -13,9 +13,9 @@
 //     --rule-id 0xdeadbeef...
 
 use anyhow::{Context, Result};
-use sp1_sdk::{ProverClient, SP1Stdin, SP1ProofWithPublicValues};
 use serde::{Deserialize, Serialize};
- use sp1_sdk::HashableKey;
+use sp1_sdk::HashableKey;
+use sp1_sdk::{ProverClient, SP1Stdin, SP1ProofWithPublicValues, Prover, ProveRequest, ProvingKey};
 
 // ── Shared types (mirror of program/src/main.rs structs) ─────────────────────
 // These must match exactly what the zkVM program reads via sp1_zkvm::io::read().
@@ -112,28 +112,32 @@ async fn main() -> Result<()> {
         println!("  Using local CPU prover...");
     }
 
-    let client = ProverClient::from_env();
-    let (pk, vk) = client.setup(PROVER_ELF);
+    let client = ProverClient::from_env().await;
+    let pk = client.setup(sp1_sdk::Elf::Static(PROVER_ELF)).await?;
+
+
 
     // ── 4. Generate Groth16 proof ────────────────────────────────────────
-    let proof: SP1ProofWithPublicValues = client
-        .prove(&pk, &stdin)
-        .groth16()
-        .run()
-        .context("Proof generation failed")?;
+   let proof: SP1ProofWithPublicValues = client
+    .prove(&pk, stdin)
+    .groth16()
+    .await
+    .context("Proof generation failed")?;
 
     println!("✓ Proof generated!");
     println!("  Proof size: {} bytes", proof.bytes().len());
 
     // ── 5. Verify locally before submitting ──────────────────────────────
-    client.verify(&proof, &vk).context("Local proof verification failed")?;
+    client.verify(&proof, pk.verifying_key(), None).context("Local proof verification failed")?;
+
+
     println!("✓ Proof verified locally");
 
     // ── 6. Serialize and write output ────────────────────────────────────
     let output_data = ProofOutput {
         proof_bytes:   hex::encode(proof.bytes()),
         public_inputs: serde_json::to_value(&public_inputs)?,
-        vk_hash:       vk.bytes32(),
+        vk_hash: pk.verifying_key().bytes32(),
     };
 
     let json = serde_json::to_string_pretty(&output_data)?;

@@ -174,7 +174,7 @@ prova/
 | Solana CLI | **2.3.0**  | `sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`                  |
 | Anchor CLI | **0.32.1** | `cargo install --git https://github.com/coral-xyz/anchor anchor-cli --tag v0.32.1` |
 | Arcium CLI | **0.9.7**  | `curl --proto '=https' --tlsv1.2 -sSfL https://install.arcium.com/ \| bash`        |
-| SP1        | latest     | `curl -L https://sp1.succinct.xyz \| bash && sp1up`                                |
+| SP1        | 6.1.0     | `curl -L https://sp1.succinct.xyz \| bash && sp1up`                                |
 | Docker     | latest     | Required by Arcium — [docs.docker.com](https://docs.docker.com/engine/install/)    |
 | Node.js    | **20+**    | via `nvm`                                                                          |
 
