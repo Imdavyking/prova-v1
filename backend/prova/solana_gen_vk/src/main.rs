@@ -2,8 +2,6 @@ use dotenv::dotenv;
 use gnark_verifier_solana::vk::generate_key_file;
 use std::env;
 use std::path::Path;
-pub mod poseidon2;
-pub mod vk;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-env-changed=VK_PATH");
