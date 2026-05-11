@@ -2,6 +2,7 @@
 
 import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
+import BN from "bn.js"; // tests/prova.ts
 import {
   RescueCipher,
   getMXEPublicKey,
@@ -75,7 +76,7 @@ export class SolanaSubmitter {
     const { encryptedAmount, encryptedRecipient, pubKey, nonce } =
       await this.encryptForArcium(rule);
 
-    const computationOffset = new anchor.BN(randomBytes(8), "hex");
+    const computationOffset = new BN(randomBytes(8), "hex");
 
     const queueSig = await this.submitProofTx(
       rule,
@@ -106,7 +107,7 @@ export class SolanaSubmitter {
     blockNumber: number,
   ): Promise<void> {
     const sig = await this.registryProgram.methods
-      .markTriggered(new anchor.BN(blockNumber))
+      .markTriggered(new BN(blockNumber))
       .accounts({ rule: rulePda, monitor: this.monitorKeypair.publicKey })
       .signers([this.monitorKeypair])
       .rpc();
@@ -126,7 +127,7 @@ export class SolanaSubmitter {
     encryptedAmount: number[];
     encryptedRecipient: number[];
     pubKey: number[];
-    nonce: anchor.BN;
+    nonce: BN;
   }> {
     // Exact pattern from Arcium hello-world docs
     const mxePublicKey = await getMXEPublicKey(
@@ -161,7 +162,7 @@ export class SolanaSubmitter {
       encryptedAmount: Array.from(ciphertext[0]),
       encryptedRecipient: Array.from(ciphertext[1]),
       pubKey: Array.from(pubKey),
-      nonce: new anchor.BN(deserializeLE(nonceBuf).toString()),
+      nonce: new BN(deserializeLE(nonceBuf).toString()),
     };
   }
 
@@ -170,11 +171,11 @@ export class SolanaSubmitter {
     rulePda: PublicKey,
     proof: GeneratedProof,
     ruleIdBytes: Buffer,
-    computationOffset: anchor.BN,
+    computationOffset: BN,
     encryptedAmount: number[],
     encryptedRecipient: number[],
     pubKey: number[],
-    nonce: anchor.BN,
+    nonce: BN,
   ): Promise<string> {
     const tokenMint = new PublicKey(rule.tokenMint);
     const clusterOffset = this.arciumEnv.arciumClusterOffset;
@@ -240,7 +241,7 @@ export class SolanaSubmitter {
     const pad = (hex: string, len: number) =>
       hex.replace("0x", "").padStart(len * 2, "0");
     return {
-      blockNumber: new anchor.BN(pi.blockNumber),
+      blockNumber: new BN(pi.blockNumber),
       stateRoot: Array.from(Buffer.from(pad(pi.stateRoot, 32), "hex")),
       walletAddress: Array.from(Buffer.from(pad(pi.walletAddress, 20), "hex")),
       thresholdWei: Array.from(Buffer.from(pad(pi.thresholdWei, 32), "hex")),
