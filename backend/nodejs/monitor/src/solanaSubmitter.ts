@@ -226,72 +226,84 @@ export class SolanaSubmitter {
       new PublicKey(rule.recipient),
     );
 
-    //     Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
-    //     this.encodePublicInputs(proof),
-    //     new Uint8Array(
-    //       Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
-    //     ), // [u8;20]
-    //     new BN(rule.thresholdWei).toArrayLike(Buffer, "le", 32),
-    //     new PublicKey(rule.recipient),
-    //     new PublicKey(rule.tokenMint),
-    //     new BN(rule.actionAmount),
+    const pi = proof.publicWitness;
+    const pad = (hex: string, len: number) =>
+      hex.replace("0x", "").padStart(len * 2, "0");
 
-    //     computationOffset,
+    const publicInputsArg = {
+      blockNumber: new BN(pi.block_number),
+      stateRoot: (Buffer.from(pad(pi.state_root, 32), "hex")),
+      walletAddress: (Buffer.from(pad(pi.wallet_address, 20), "hex")),
+      thresholdWei: (Buffer.from(pad(pi.threshold_wei, 32), "hex")),
+      ruleId: (Buffer.from(pad(pi.rule_id, 32), "hex")),
+    };
 
-    //     encryptedAmount,
-    //     encryptedRecipient,
-    //     pubKey,
-    //     nonce,
+    const piDebug = {
+  stateRoot:    Buffer.from(pad(pi.state_root,     32), "hex").length,
+  walletAddress: Buffer.from(pad(pi.wallet_address, 20), "hex").length,
+  thresholdWei: Buffer.from(pad(pi.threshold_wei,  32), "hex").length,
+  ruleId:       Buffer.from(pad(pi.rule_id,        32), "hex").length,
+};
 
-    // i want to log everything(but hex limited to first 32 chars) before this call to make sure all the data is correct and properly formatted, since it's the most complex part of the code and easy to mess up
+const argsDebug = {
+  proofBytes:       Buffer.from(proof.proof.replace(/^0x/, ""), "hex").length,
+  publicValues:     Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex").length,
+  watchAddress:     Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex").length,
+  thresholdWei:     Buffer.from(BigInt(rule.thresholdWei).toString(16).padStart(64, "0"), "hex").length,
+  encryptedAmount:  Buffer.from(encryptedAmount).length,
+  encryptedRecipient: Buffer.from(encryptedRecipient).length,
+  pubKey:           Buffer.from(pubKey).length,
+};
 
-    logger.info("Submitting proof with the following data:", {
-      proof: proof.proof.slice(0, 34) + "...",
-      publicInputs: proof.publicInputs.slice(0, 34) + "...",
-      encodedPublicInputs: this.encodePublicInputs(proof),
-      watchAddress: rule.watchAddress,
-      thresholdWei: rule.thresholdWei.toString(),
-      recipient: rule.recipient,
-      tokenMint: rule.tokenMint,
-      actionAmount: rule.actionAmount.toString(),
-      computationOffset: computationOffset.toString(),
-      encryptedAmount:
-        encryptedAmount
-          .slice(0, 10)
-          .map((n) => n.toString(16))
-          .join(" ") + "...",
-      encryptedRecipient:
-        encryptedRecipient
-          .slice(0, 10)
-          .map((n) => n.toString(16))
-          .join(" ") + "...",
-      pubKey:
-        pubKey
-          .slice(0, 10)
-          .map((n) => n.toString(16))
-          .join(" ") + "...",
-      nonce: nonce.toString(),
-    });
+console.log("publicInputsArg field lengths:", piDebug);
+console.log("top-level arg lengths:", argsDebug);
+console.log("raw pi values:", {
+  state_root:    pi.state_root,
+  wallet_address: pi.wallet_address,
+  threshold_wei: pi.threshold_wei,
+  rule_id:       pi.rule_id,
+});
 
     return await this.executorProgram.methods
       .submitProofAndExecute(
-        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
-        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
-        this.encodePublicInputs(proof),
-        new Uint8Array(
-          Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
-        ), // [u8;20]
-        new BN(rule.thresholdWei).toArrayLike(Buffer, "le", 32),
+        // proof_bytes (Vec<u8>)
+        (Buffer.from(proof.proof.replace(/^0x/, ""), "hex")),
+
+        // public_values (Vec<u8>)
+        (Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex")),
+
+        // public_inputs (struct)
+        publicInputsArg,
+
+        // rule_watch_address [u8;20]
+        (Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex")),
+
+        // rule_threshold_wei [u8;32]
+        (
+          Buffer.from(
+            BigInt(rule.thresholdWei).toString(16).padStart(64, "0"),
+            "hex",
+          ),
+        ),
+
+        // rule_recipient (pubkey)
         new PublicKey(rule.recipient),
+
+        // rule_token_mint (pubkey)
         new PublicKey(rule.tokenMint),
-        new BN(rule.actionAmount),
 
-        computationOffset,
+        // rule_action_amount (u64) → SAFE primitive (NOT BN)
+        Number(rule.actionAmount),
 
-        encryptedAmount,
-        encryptedRecipient,
-        pubKey,
-        nonce,
+        // computation_offset (u64)
+        Number(computationOffset.toString()),
+
+        Buffer.from(encryptedAmount),
+        Buffer.from(encryptedRecipient),
+        Buffer.from(pubKey),
+
+        // nonce (u128) → safest as BigInt
+        BigInt(nonce.toString()),
       )
       .accountsPartial({
         feePayer: this.monitorKeypair.publicKey,
@@ -301,7 +313,7 @@ export class SolanaSubmitter {
         vaultAuthority,
         recipientTokenAccount,
         tokenMint,
-        ruleTokenMint: new PublicKey(rule.tokenMint), 
+        ruleTokenMint: new PublicKey(rule.tokenMint),
         // Arcium PDA helpers — exact same pattern as hello-world test
         computationAccount: getComputationAccAddress(
           clusterOffset,
@@ -321,16 +333,4 @@ export class SolanaSubmitter {
       .rpc({ commitment: "confirmed" });
   }
 
-  private encodePublicInputs(proof: GeneratedProof): object {
-    const pi = proof.publicWitness;
-    const pad = (hex: string, len: number) =>
-      hex.replace("0x", "").padStart(len * 2, "0");
-    return {
-      blockNumber: new BN(pi.block_number),
-      stateRoot: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
-      walletAddress: Array.from(Buffer.from(pad(pi.wallet_address, 20), "hex")),
-      thresholdWei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
-      ruleId: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
-    };
-  }
 }
