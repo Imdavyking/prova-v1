@@ -70,7 +70,9 @@ export class SolanaSubmitter {
       this.registryProgram.programId,
     );
 
-    await this.markTriggered(rulePda, proof.publicInputs.blockNumber);
+    logger.info("Marking rule as triggered on-chain...");
+
+    await this.markTriggered(rulePda, proof.blockNumber || 0);
     await this.markProving(rulePda);
 
     const { encryptedAmount, encryptedRecipient, pubKey, nonce } =
@@ -106,6 +108,14 @@ export class SolanaSubmitter {
     rulePda: PublicKey,
     blockNumber: number,
   ): Promise<void> {
+    // check if triggered before
+    const ruleData = await this.registryProgram.account.rule(rulePda);
+    logger.info(`Current rule status: ${ruleData.status.toString()}`);
+    if (Object.keys(ruleData.status)[0] === "triggered") {
+      logger.warn("Rule is already in triggered state, skipping markTriggered");
+      return;
+    }
+
     const sig = await this.registryProgram.methods
       .markTriggered(new BN(blockNumber))
       .accounts({ rule: rulePda, monitor: this.monitorKeypair.publicKey })
@@ -115,6 +125,16 @@ export class SolanaSubmitter {
   }
 
   private async markProving(rulePda: PublicKey): Promise<void> {
+    // check if already proving before
+    const ruleData = await this.registryProgram.account.rule(rulePda);
+    const status = Object.keys(ruleData.status)[0];
+    logger.info(`Current rule status: ${status}`);
+    if (status === "proving" || status === "executed") {
+      logger.warn(
+        "Rule is already in proving/executed state, skipping markProving",
+      );
+      return;
+    }
     const sig = await this.registryProgram.methods
       .markProving()
       .accounts({ rule: rulePda, monitor: this.monitorKeypair.publicKey })

@@ -28,6 +28,7 @@ export interface GeneratedProof {
   proof: string;
   witness: string;
   publicInputs: string;
+  blockNumber?: number;
 }
 
 export class ProofGenerator {
@@ -129,6 +130,7 @@ export class ProofGenerator {
       publicInputs,
       proof,
       witness: Buffer.from(witness).toString("hex"),
+      blockNumber: event.blockNumber,
     };
   }
 

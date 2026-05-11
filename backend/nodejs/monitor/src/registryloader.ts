@@ -34,16 +34,7 @@ export class RegistryLoader {
     try {
       // Fetch all Rule accounts — filter by status byte (offset 8 + 32 + 32 + ... = status position)
       // Anchor provides getProgramAccounts with filter support
-      const accounts = await (this.program.account as any)["rule"].all([
-        {
-          // status field is at a known offset in the Rule account
-          // Status::Active = 0 (first enum variant)
-          memcmp: {
-            offset: getRuleStatusOffset(),
-            bytes: "1", // base58 encoded [0] = "1" in bs58
-          },
-        },
-      ]);
+      const accounts = await (this.program.account as any)["rule"].all();
 
       const TEST_ADDRESS = "0x" + "01".repeat(20);
 
@@ -59,9 +50,17 @@ export class RegistryLoader {
             recipient: data.recipient.toBase58(),
             tokenMint: data.tokenMint.toBase58(),
             actionAmount: BigInt(data.actionAmount.toString()),
+            status: Object.keys(data.status)[0], // convert enum discriminant to string
           };
         })
-        .filter((r: any) => r.watchAddress.toLowerCase() !== TEST_ADDRESS);
+        .filter((r: any) => {
+          const isTest = r.watchAddress.toLowerCase() === TEST_ADDRESS;
+
+          const isTerminal =
+            r.status === "executed" || r.status === "cancelled";
+
+          return !isTest && !isTerminal;
+        });
 
       logger.info(`Loaded ${rules.length} active rules`);
       return rules;
