@@ -8,7 +8,7 @@ export const REGISTRY_PROGRAM_ID =
 
 export const EXECUTOR_PROGRAM_ID =
   (import.meta as any).env.VITE_EXECUTOR_PROGRAM_ID ??
-  "9cgBVGFfx2XmMhD9L9U7b6xfgSe4MageWcWnn4NUi9dL";
+  "3KNFsYY4FC5PVxCq9dGV8v7izGKs6zRyEaUqq17C8fdA";
 
 export const SOLANA_RPC_URL =
   (import.meta as any).env.VITE_SOLANA_RPC_URL ??
