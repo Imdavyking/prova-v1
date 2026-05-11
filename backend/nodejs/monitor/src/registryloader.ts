@@ -99,11 +99,21 @@ export class RegistryLoader {
 
 /** Calculate byte offset of the `status` field in the Rule account */
 function getRuleStatusOffset(): number {
-  // 8 (discriminator) + 32 (owner) + 32 (rule_id) + 2 (source_chain)
-  // + 2 (condition_type) + 20 (watch_address) + 20 (token_address)
-  // + 32 (threshold_wei) + 2 (action_type) + 32 (recipient) + 32 (token_mint)
-  // + 8 (action_amount) + 8 (escrowed_fee) = 230
-  return 230;
+  // 8  (discriminator)
+  // 32 (owner)
+  // 32 (rule_id)
+  // 1  (source_chain)
+  // 1  (condition_type)
+  // 20 (watch_address)
+  // 20 (token_address)
+  // 32 (threshold_wei)
+  // 1  (action_type)
+  // 32 (recipient)
+  // 32 (token_mint)
+  // 8  (action_amount)
+  // 8  (escrowed_fee)
+  // = 227
+  return 227;
 }
 
 function bufferToBigInt(buf: Buffer): bigint {
