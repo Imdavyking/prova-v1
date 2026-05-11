@@ -4,6 +4,15 @@ import * as fs from "fs";
 import * as path from "path";
 import { ethers } from "ethers";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+import { Noir, type CompiledCircuit } from "@noir-lang/noir_js";
+
+import * as acvm from "@noir-lang/acvm_js";
+import * as noirc from "@noir-lang/noirc_abi";
+
+import circuitJson from "../../noir_prover.json";
 
 import { logger } from "./logger";
 import { config } from "./config";
@@ -24,8 +33,11 @@ export interface GeneratedProof {
 
 export class ProofGenerator {
   private wasmBuffer: Buffer;
-  private goInstance: any;
-  private wasmInitialized = false;
+
+  private noirInitialized = false;
+  private gnarkInitialized = false;
+
+  private noir!: Noir;
 
   constructor() {
     const wasmPath = path.resolve(__dirname, "../../proof.wasm");
@@ -37,66 +49,131 @@ export class ProofGenerator {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Public API
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // Public
+  // ─────────────────────────────────────────────
 
   async generate(event: TriggerEvent): Promise<GeneratedProof> {
-    const { rule, blockNumber } = event;
-
-    logger.info("Generating proof...", {
-      ruleId: rule.ruleId,
-      blockNumber,
-      wallet: rule.watchAddress,
-    });
-
     const started = Date.now();
 
-    await this.initWasmRuntime();
-
-    // 1. Build actual Noir witness inputs
-    const witnessInput = await this.buildWitnessInput(event);
-    logger.info("Witness input built", {
-      blockNumber: witnessInput.block_number,
-      stateRoot: "0x" + Buffer.from(witnessInput.state_root).toString("hex"),
-      wallet: "0x" + Buffer.from(witnessInput.wallet_address).toString("hex"),
-      thresholdWei:
-        "0x" + Buffer.from(witnessInput.threshold_wei).toString("hex"),
-      ruleId: "0x" + Buffer.from(witnessInput.rule_id).toString("hex"),
-      accountRlpLen: witnessInput.account_rlp_len,
-      numProofNodes: witnessInput.num_proof_nodes,
-      headerRlpLen: witnessInput.header_rlp_len,
+    logger.info("Generating proof...", {
+      ruleId: event.rule.ruleId,
+      wallet: event.rule.watchAddress,
+      block: event.blockNumber,
     });
 
-    // 2. Generate witness bytes
-    const witnessBytes = await this.generateWitness(witnessInput);
+    await this.initNoir();
 
-    // 3. Init circuit with witness
-    await this.initCircuit(witnessBytes);
+    await this.initGnarkRuntime();
 
-    // 4. Generate proof
-    const proofResult = await this.callGenerateProof();
+    // ─────────────────────────────────────────
+    // Build Noir Inputs
+    // ─────────────────────────────────────────
+
+    const input = await this.buildWitnessInput(event);
+
+    // ─────────────────────────────────────────
+    // Generate Witness
+    // ─────────────────────────────────────────
+
+    logger.info("Executing Noir circuit...");
+
+    const { witness } = await this.noir.execute(input);
+
+    logger.info("✅ Witness generated");
+
+    // ─────────────────────────────────────────
+    // Load proving assets
+    // ─────────────────────────────────────────
+
+    const ccsBytes = fs.readFileSync(
+      path.resolve(__dirname, "../../noir_prover.ccs"),
+    );
+
+    const pkBytes = fs.readFileSync(
+      path.resolve(__dirname, "../../noir_prover.pk"),
+    );
+
+    const acirBytes = new TextEncoder().encode(JSON.stringify(circuitJson));
+
+    // ─────────────────────────────────────────
+    // Init Circuit
+    // ─────────────────────────────────────────
+
+    logger.info("Initializing circuit...");
+
+    const initResult = await (globalThis as any).initCircuit(
+      ccsBytes,
+      pkBytes,
+      acirBytes,
+      witness,
+    );
+
+    if (initResult !== true && initResult !== undefined) {
+      throw new Error("initCircuit failed");
+    }
+
+    logger.info("✅ Circuit initialized");
+
+    // ─────────────────────────────────────────
+    // Generate Proof
+    // ─────────────────────────────────────────
+
+    logger.info("Generating zk proof...");
+
+    const result = await (globalThis as any).generateProof();
+
+    if (!result) {
+      throw new Error("generateProof failed");
+    }
 
     const elapsed = ((Date.now() - started) / 1000).toFixed(2);
 
     logger.info(`✅ Proof generated in ${elapsed}s`);
 
     return {
-      proofBytes: Buffer.from(
-        proofResult.proof || proofResult.proofBytes || "",
-        "hex",
-      ),
+      proofBytes: Buffer.from(result.proof || result.proofBytes || []),
 
-      publicInputs: proofResult.publicInputs || proofResult,
+      publicInputs: result.publicInputs || {},
     };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // WASM Runtime
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // Noir Init
+  // ─────────────────────────────────────────────
 
-  private async initWasmRuntime() {
-    if (this.wasmInitialized) return;
+  private async initNoir() {
+    if (this.noirInitialized) {
+      return;
+    }
+
+    logger.info("Initializing Noir...");
+
+    // Load wasm binaries manually
+    const acvmPath = require.resolve("@noir-lang/acvm_js/web/acvm_js_bg.wasm");
+
+    const noircPath =
+      require.resolve("@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm");
+
+    const acvmBytes = fs.readFileSync(acvmPath);
+
+    const noircBytes = fs.readFileSync(noircPath);
+
+    this.noir = new Noir(circuitJson as CompiledCircuit);
+
+    this.noirInitialized = true;
+
+    logger.info("✅ Noir initialized");
+  }
+
+  // ─────────────────────────────────────────────
+  // Gnark Runtime
+  // ─────────────────────────────────────────────
+
+  private async initGnarkRuntime() {
+    if (this.gnarkInitialized) {
+      return;
+    }
 
     const wasmExecPath = path.resolve(__dirname, "../../wasm_exec.js");
 
@@ -104,23 +181,23 @@ export class ProofGenerator {
 
     await import(url.href);
 
-    this.goInstance = new (globalThis as any).Go();
+    const go = new (globalThis as any).Go();
 
     const wasm = await WebAssembly.instantiate(
       this.wasmBuffer,
-      this.goInstance.importObject,
+      go.importObject,
     );
 
-    this.goInstance.run(wasm.instance);
+    go.run(wasm.instance);
 
-    this.wasmInitialized = true;
+    this.gnarkInitialized = true;
 
-    logger.info("✅ Go WASM runtime initialized");
+    logger.info("✅ Gnark runtime initialized");
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Witness Input Builder
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // Build Witness Inputs
+  // ─────────────────────────────────────────────
 
   private async buildWitnessInput(event: TriggerEvent) {
     const { rule, blockNumber } = event;
@@ -129,11 +206,12 @@ export class ProofGenerator {
 
     const blockHex = "0x" + blockNumber.toString(16);
 
-    logger.info("Fetching block data...", {
-      blockNumber,
-    });
+    // ─────────────────────────────────────────
+    // Block
+    // ─────────────────────────────────────────
 
-    // ── Fetch block
+    logger.info("Fetching block...");
+
     const block = await provider.send("eth_getBlockByNumber", [
       blockHex,
       false,
@@ -141,7 +219,10 @@ export class ProofGenerator {
 
     const stateRoot = this.hexToBytes(block.stateRoot);
 
-    // ── Fetch proof
+    // ─────────────────────────────────────────
+    // Proof
+    // ─────────────────────────────────────────
+
     logger.info("Fetching account proof...");
 
     const proofResp = await provider.send("eth_getProof", [
@@ -168,7 +249,10 @@ export class ProofGenerator {
       nodeLens.push(0);
     }
 
-    // ── Account RLP
+    // ─────────────────────────────────────────
+    // Account RLP
+    // ─────────────────────────────────────────
+
     const accountRlp = this.encodeAccountRlp(
       proofResp.nonce.replace("0x", ""),
       proofResp.balance.replace("0x", ""),
@@ -178,14 +262,17 @@ export class ProofGenerator {
 
     const accountRlpPadded = this.padArray(accountRlp, MAX_ACCOUNT_LEN);
 
-    // ── Header RLP
-    logger.info("Fetching raw block header...");
+    // ─────────────────────────────────────────
+    // Header
+    // ─────────────────────────────────────────
+
+    logger.info("Fetching block header...");
 
     let rawHeader: string;
 
     try {
       rawHeader = await provider.send("debug_getRawHeader", [blockHex]);
-    } catch (err) {
+    } catch {
       throw new Error(
         "debug_getRawHeader failed. Use archive RPC with debug namespace.",
       );
@@ -195,7 +282,7 @@ export class ProofGenerator {
 
     const headerRlpPadded = this.padArray(headerRlp, MAX_HEADER_LEN);
 
-    logger.info("Witness input built", {
+    logger.info("Witness inputs built", {
       proofNodes: accountProofNodes.length,
       accountRlpLen: accountRlp.length,
       headerRlpLen: headerRlp.length,
@@ -203,6 +290,7 @@ export class ProofGenerator {
 
     return {
       // ── Public Inputs
+
       block_number: blockNumber,
 
       state_root: stateRoot,
@@ -214,6 +302,7 @@ export class ProofGenerator {
       rule_id: this.hexToBytes(rule.ruleId),
 
       // ── Private Witnesses
+
       account_rlp_len: accountRlp.length,
 
       account_rlp: accountRlpPadded,
@@ -230,93 +319,11 @@ export class ProofGenerator {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Witness Generation
-  // ─────────────────────────────────────────────────────────────
-
-  private async generateWitness(input: any): Promise<Uint8Array> {
-    logger.info("Generating witness...");
-
-    const fn = (globalThis as any).generateWitness;
-
-    if (!fn) {
-      throw new Error("generateWitness export not found in WASM");
-    }
-
-    const result = await fn(JSON.stringify(input));
-
-    if (!result) {
-      throw new Error("Witness generation failed");
-    }
-
-    if (result instanceof Uint8Array) {
-      return result;
-    }
-
-    if (result.witness) {
-      return new Uint8Array(result.witness);
-    }
-
-    return new Uint8Array(result);
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Circuit Initialization
-  // ─────────────────────────────────────────────────────────────
-
-  private async initCircuit(witnessBytes: Uint8Array) {
-    logger.info("Initializing circuit...");
-
-    const ccsBytes = fs.readFileSync(
-      path.resolve(__dirname, "../../noir_prover.ccs"),
-    );
-
-    const pkBytes = fs.readFileSync(
-      path.resolve(__dirname, "../../noir_prover.pk"),
-    );
-
-    const fn = (globalThis as any).initCircuit;
-
-    if (!fn) {
-      throw new Error("initCircuit export not found in WASM");
-    }
-
-    const success = await fn(ccsBytes, pkBytes, witnessBytes);
-
-    if (success !== true && success !== undefined) {
-      throw new Error("initCircuit failed");
-    }
-
-    logger.info("✅ Circuit initialized");
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Proof Generation
-  // ─────────────────────────────────────────────────────────────
-
-  private async callGenerateProof() {
-    logger.info("Generating zk proof...");
-
-    const fn = (globalThis as any).generateProof;
-
-    if (!fn) {
-      throw new Error("generateProof export not found in WASM");
-    }
-
-    const result = await fn();
-
-    if (!result) {
-      throw new Error("generateProof failed");
-    }
-
-    return result;
-  }
-
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
   // Helpers
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
 
-  private padArray(arr: number[], len: number, fill = 0) {
+  private padArray(arr: number[], len: number, fill = 0): number[] {
     const result = [...arr];
 
     while (result.length < len) {
@@ -340,9 +347,9 @@ export class ProofGenerator {
     return this.hexToBytes("0x" + hex);
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // RLP Encoding
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // RLP Helpers
+  // ─────────────────────────────────────────────
 
   private rlpEncodeBytes(hex: string): number[] {
     const padded = hex.length % 2 ? "0" + hex : hex;
