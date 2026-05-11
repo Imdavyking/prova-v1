@@ -115,7 +115,7 @@ fn verify_noir_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<ProvaPu
 /// Validates public inputs against rule parameters. Own frame via #[inline(never)].
 #[inline(never)]
 fn validate_inputs(
-    public_inputs: &BalanceProofPublicInputs,
+    public_inputs: &ProvaPublicInputs,
     rule_watch_address: &[u8; 20],
     rule_threshold_wei: &[u8; 32],
 ) -> Result<()> {
@@ -163,6 +163,8 @@ pub mod prova_executor {
     ) -> Result<()> {
         // ── 1. Verify SP1 proof (own stack frame) ─────────────────────────────
         verify_sp1_proof(&proof_bytes, &public_values)?;
+
+        let public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
 
         // ── 2. Validate public inputs (own stack frame) ───────────────────────
         validate_inputs(&public_inputs, &rule_watch_address, &rule_threshold_wei)?;
