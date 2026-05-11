@@ -192,6 +192,44 @@ export class ProofGenerator {
     logger.info("✅ Gnark runtime initialized");
   }
 
+  private async runCliProver(
+    ccsPath: string,
+    pkPath: string,
+    witnessPath: string,
+    acirPath: string,
+    outPath: string,
+  ) {
+    const { execFile } = await import("child_process");
+
+    return new Promise((resolve, reject) => {
+      const cmd = "./prover-cli"; // your compiled Go binary
+
+      const args = [
+        "--ccs",
+        ccsPath,
+        "--pk",
+        pkPath,
+        "--witness",
+        witnessPath,
+        "--acir",
+        acirPath,
+        "--out",
+        outPath,
+      ];
+
+      const proc = execFile(cmd, args, (err: any) => {
+        if (err) return reject(err);
+
+        resolve(true);
+      });
+
+      proc.stdout?.on("data", (d) => console.log("[CLI]", d.toString()));
+      proc.stderr?.on("data", (d) =>
+        console.error("[CLI ERROR]", d.toString()),
+      );
+    });
+  }
+
   // ─────────────────────────────────────────────
   // Build Witness Inputs
   // ─────────────────────────────────────────────

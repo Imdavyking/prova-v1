@@ -8,6 +8,9 @@ import (
 	"proof-generator/acir"
 	"proof-generator/bn254"
 	"syscall/js"
+	// "encoding/json"
+	"flag"
+	"os"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	ecc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254"
@@ -183,6 +186,22 @@ func generateProof(this js.Value, args []js.Value) interface{} {
 }
 
 func main() {
+	// CLI flags
+	ccsPath := flag.String("ccs", "", "Path to CCS file")
+	pkPath := flag.String("pk", "", "Path to proving key file")
+	witnessPath := flag.String("witness", "", "Path to witness file")
+	acirPath := flag.String("acir", "", "Path to ACIR JSON file (optional)")
+	outPath := flag.String("out", "proof.json", "Output proof file")
+
+	if *ccsPath == "" || *pkPath == "" || *witnessPath == "" || *acirPath == "" || *outPath == "" {
+		fmt.Println("Missing required arguments: --ccs, --pk, --witness, --acir, --out")
+		os.Exit(1)
+	}
+
+	fmt.Println("📦 Loading files...")
+
+
+	flag.Parse()
 	c := make(chan struct{})
 
 	// Register functions to be called from JavaScript
