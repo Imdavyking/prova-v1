@@ -272,6 +272,10 @@ SP1_PRIVATE_KEY=
 ### 1. SP1 Prover Circuit
 
 ```bash
+cd backend/prova/sp1-prover/
+
+cargo build --release
+
 cd backend/prova/sp1-prover/program
 
 # Compile zkVM circuit to RISC-V ELF
