@@ -33,14 +33,12 @@ export class ProofGenerator {
   private scriptBin: string;
 
   constructor() {
-    this.scriptBin = config.sp1ScriptPath.startsWith("/")
-      ? path.join(config.sp1ScriptPath, "release/prova-prove")
-      : path.resolve(
-          __dirname, // monitor/src/
-          "../../", // backend/
-          config.sp1ScriptPath,
-          "release/prova-prove",
-        );
+    this.scriptBin = path.resolve(
+      __dirname, // monitor/src/
+      "../../", // backend/
+      config.sp1ScriptPath,
+      "release/prova-prove",
+    );
 
     logger.info("SP1 prover binary", { path: this.scriptBin });
   }
