@@ -21,6 +21,10 @@ import {
 import Navbar from "../components/Navbar";
 import { NATIVE_ETH_ADDRESS, MIN_FEE_LAMPORTS } from "../utils/constants";
 
+// Devnet Mint Addresses
+const WSOL_MINT = "So11111111111111111111111111111111111111112";
+const USDC_DEVNET_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+
 // ── Status helpers ────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<
@@ -155,6 +159,7 @@ function RuleCard({
   const isNative =
     rule.tokenAddress === NATIVE_ETH_ADDRESS ||
     rule.tokenAddress === "0x" + "00".repeat(20);
+
   const canCancel = rule.status === RuleStatus.Active;
 
   return (
@@ -294,7 +299,7 @@ const DEFAULT_FORM: RegisterRuleParams = {
   thresholdWei: "",
   actionType: ActionType.TransferSpl,
   recipient: "",
-  tokenMint: "",
+  tokenMint: USDC_DEVNET_MINT, // Default to USDC on devnet
   actionAmount: "",
   escrowedFeeLamports: MIN_FEE_LAMPORTS,
 };
@@ -372,7 +377,6 @@ export default function AppPage() {
       setThresholdEth("");
       setFeeSOL("0.001");
       await loadRules();
-      // Start polling status in background
       pollRuleStatus(anchorWallet, connection, rulePda, () =>
         loadRules(),
       ).catch(() => {});
@@ -434,7 +438,6 @@ export default function AppPage() {
                 {ellipsify(publicKey.toBase58(), 6)}
               </span>
             )}
-            {/* Wallet adapter modal button — styled via CSS override */}
             <WalletMultiButton
               style={{
                 background: connected ? "rgba(255,85,0,0.1)" : "#FF5500",
@@ -454,7 +457,7 @@ export default function AppPage() {
         </div>
 
         {!connected ? (
-          /* ── Not connected splash ─────────────────────────────────────────── */
+          /* Not connected splash */
           <div className="flex flex-col items-center justify-center py-32 gap-8">
             <div className="w-16 h-16 rounded-sm bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
               <svg viewBox="0 0 32 32" fill="none" className="w-8 h-8">
@@ -494,12 +497,11 @@ export default function AppPage() {
             />
           </div>
         ) : (
-          /* ── Connected: two-column layout ────────────────────────────────── */
+          /* Connected: two-column layout */
           <div className="grid lg:grid-cols-5 gap-8">
-            {/* ── LEFT: Register form ──────────────────────────────────────── */}
+            {/* LEFT: Register form */}
             <div className="lg:col-span-2">
               <div className="border border-[rgba(255,85,0,0.15)] rounded-sm overflow-hidden">
-                {/* Form header */}
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-[rgba(255,85,0,0.1)] bg-[rgba(255,85,0,0.04)]">
                   <span className="w-2 h-2 rounded-full bg-orange-500" />
                   <span className="font-mono text-xs text-orange-500 uppercase tracking-widest">
@@ -579,13 +581,24 @@ export default function AppPage() {
                     <select
                       className={selectCls}
                       value={form.actionType}
-                      onChange={set("actionType")}
+                      onChange={(e) => {
+                        const newType = e.target.value as ActionType;
+                        setForm((f) => {
+                          const updated = { ...f, actionType: newType };
+                          if (newType === ActionType.TransferSol) {
+                            updated.tokenMint = WSOL_MINT;
+                          } else if (f.tokenMint === WSOL_MINT) {
+                            updated.tokenMint = USDC_DEVNET_MINT;
+                          }
+                          return updated;
+                        });
+                      }}
                     >
                       <option value={ActionType.TransferSpl}>
                         Transfer SPL Token
                       </option>
                       <option value={ActionType.TransferSol}>
-                        Transfer SOL
+                        Transfer SOL (Native)
                       </option>
                     </select>
                   </Field>
@@ -602,20 +615,42 @@ export default function AppPage() {
 
                   {/* Mint + amount */}
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Token Mint">
+                    <Field
+                      label="Token Mint"
+                      hint={
+                        form.actionType === ActionType.TransferSol
+                          ? "WSOL"
+                          : "USDC Devnet"
+                      }
+                    >
                       <input
                         className={inputCls}
-                        placeholder="EPjFW...USDC"
+                        placeholder={
+                          form.actionType === ActionType.TransferSol
+                            ? WSOL_MINT
+                            : USDC_DEVNET_MINT
+                        }
                         value={form.tokenMint}
                         onChange={set("tokenMint")}
+                        disabled={form.actionType === ActionType.TransferSol}
                       />
+                      {form.actionType === ActionType.TransferSol && (
+                        <p className="font-mono text-[10px] text-emerald-400 mt-1">
+                          ✓ Native SOL Transfer
+                        </p>
+                      )}
                     </Field>
+
                     <Field label="Amount" hint="smallest unit">
                       <input
                         className={inputCls}
                         type="number"
                         min="0"
-                        placeholder="100000000"
+                        placeholder={
+                          form.actionType === ActionType.TransferSol
+                            ? "1000000000"
+                            : "1000000"
+                        }
                         value={form.actionAmount}
                         onChange={set("actionAmount")}
                       />
@@ -677,7 +712,7 @@ export default function AppPage() {
                   <button
                     onClick={handleRegister}
                     disabled={!formValid || txState === "loading"}
-                    className="w-full btn-orange py-3 rounded-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                    className="w-full btn-orange py-3 rounded-sm text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {txState === "loading" ? (
                       <span className="flex items-center justify-center gap-2">
@@ -689,7 +724,6 @@ export default function AppPage() {
                     )}
                   </button>
 
-                  {/* Fee note */}
                   <p className="font-mono text-[10px] text-[#333] text-center">
                     Min fee: {MIN_FEE_LAMPORTS.toLocaleString()} lamports ·
                     devnet
@@ -698,9 +732,8 @@ export default function AppPage() {
               </div>
             </div>
 
-            {/* ── RIGHT: Rules dashboard ───────────────────────────────────── */}
+            {/* RIGHT: Rules dashboard */}
             <div className="lg:col-span-3">
-              {/* Dashboard header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs text-[#888] uppercase tracking-widest">
@@ -721,7 +754,6 @@ export default function AppPage() {
                 </button>
               </div>
 
-              {/* Rules list */}
               {rulesLoading && rules.length === 0 ? (
                 <div className="flex items-center justify-center py-20 border border-[#111] rounded-sm">
                   <div className="flex flex-col items-center gap-3">
@@ -758,7 +790,6 @@ export default function AppPage() {
                 </div>
               )}
 
-              {/* Legend */}
               {rules.length > 0 && (
                 <div className="mt-6 p-4 border border-[#111] rounded-sm">
                   <p className="font-mono text-[10px] text-[#444] uppercase tracking-widest mb-3">
@@ -778,12 +809,6 @@ export default function AppPage() {
                       </span>
                     ))}
                   </div>
-                  <p className="font-mono text-[10px] text-[#333] mt-3">
-                    Prova monitor nodes watch the source chain. When condition
-                    triggers, a Groth16 ZK proof is generated and submitted to
-                    Solana. The executor verifies the proof on-chain and
-                    transfers your tokens privately via Arcium MXE.
-                  </p>
                 </div>
               )}
             </div>
