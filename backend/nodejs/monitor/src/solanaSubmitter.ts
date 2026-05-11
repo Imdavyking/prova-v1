@@ -109,10 +109,13 @@ export class SolanaSubmitter {
     blockNumber: number,
   ): Promise<void> {
     // check if triggered before
-    const ruleData = await this.registryProgram.account.rule(rulePda);
-    logger.info(`Current rule status: ${ruleData.status.toString()}`);
-    if (Object.keys(ruleData.status)[0] === "triggered") {
-      logger.warn("Rule is already in triggered state, skipping markTriggered");
+    const ruleData = await this.registryProgram.account.rule.fetch(rulePda);
+    const status = Object.keys(ruleData.status)[0];
+    logger.info(`Current rule status: ${status}`);
+    if (status === "triggered" || status === "proving" || status === "executed") {
+      logger.warn(
+        "Rule is already in triggered/proving/executed state, skipping markTriggered",
+      );
       return;
     }
 
@@ -126,7 +129,7 @@ export class SolanaSubmitter {
 
   private async markProving(rulePda: PublicKey): Promise<void> {
     // check if already proving before
-    const ruleData = await this.registryProgram.account.rule(rulePda);
+    const ruleData = await this.registryProgram.account.rule.fetch(rulePda);
     const status = Object.keys(ruleData.status)[0];
     logger.info(`Current rule status: ${status}`);
     if (status === "proving" || status === "executed") {
