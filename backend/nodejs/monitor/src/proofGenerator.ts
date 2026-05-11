@@ -3,19 +3,17 @@
 // Invokes the SP1 Rust proof generation script as a subprocess.
 // Returns the raw Groth16 proof bytes and decoded public inputs.
 
-import { execFile } from "child_process";
+import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { promisify } from "util";
 import { logger } from "./logger";
 import { config } from "./config";
 import { TriggerEvent } from "./ethWatcher";
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const execFileAsync = promisify(execFile);
 
 export interface GeneratedProof {
   proofBytes: Buffer; // Raw Groth16 proof bytes for Solana
@@ -44,7 +42,7 @@ export class ProofGenerator {
   }
 
   async generate(event: TriggerEvent): Promise<GeneratedProof> {
-    const { rule, blockNumber, stateRoot } = event;
+    const { rule, blockNumber } = event;
 
     logger.info("Generating ZK proof...", {
       ruleId: rule.ruleId,
@@ -82,31 +80,43 @@ export class ProofGenerator {
     const env = {
       ...process.env,
       RUST_LOG: "info",
-      // Succinct prover network key (if using network mode)
       SP1_PRIVATE_KEY: process.env["SP1_PRIVATE_KEY"] ?? "",
     };
 
     logger.info("Running SP1 prover...", { args: args.join(" ") });
     const start = Date.now();
 
-    try {
-      const { stdout, stderr } = await execFileAsync(this.scriptBin, args, {
-        env,
-        timeout: 300_000, // 5-minute timeout
-        maxBuffer: 50 * 1024 * 1024,
+    // Stream stdout/stderr in real time so we see proving progress
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(this.scriptBin, args, { env });
+
+      child.stdout.on("data", (d: Buffer) =>
+        logger.info("[prover] " + d.toString().trimEnd()),
+      );
+      child.stderr.on("data", (d: Buffer) =>
+        logger.info("[prover] " + d.toString().trimEnd()),
+      );
+
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error("SP1 prover timed out after 5 minutes"));
+      }, 300_000);
+
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`prova-prove exited with code ${code}`));
+        }
       });
 
-      if (stdout)
-        logger.debug("Prover stdout", { stdout: stdout.slice(0, 500) });
-      if (stderr)
-        logger.debug("Prover stderr", { stderr: stderr.slice(0, 500) });
-    } catch (err: any) {
-      logger.error("Proof generation failed", {
-        error: String(err.message),
-        stderr: err.stderr?.slice(0, 1000),
+      child.on("error", (err) => {
+        clearTimeout(timer);
+        logger.error("Proof generation failed", { error: String(err) });
+        reject(err);
       });
-      throw new Error(`SP1 proof generation failed: ${err.message}`);
-    }
+    });
 
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     logger.info(`✓ Proof generated in ${elapsed}s`);
