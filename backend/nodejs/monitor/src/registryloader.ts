@@ -20,11 +20,7 @@ export class RegistryLoader {
   private program: anchor.Program;
 
   constructor(provider: anchor.AnchorProvider) {
-    this.program = new anchor.Program(
-      RegistryIDL as anchor.Idl,
-      new PublicKey(config.registryProgramId),
-      provider,
-    );
+    this.program = new anchor.Program(RegistryIDL as anchor.Idl, provider);
   }
 
   /** Fetch all Rule accounts with status == Active */
@@ -34,7 +30,7 @@ export class RegistryLoader {
     try {
       // Fetch all Rule accounts — filter by status byte (offset 8 + 32 + 32 + ... = status position)
       // Anchor provides getProgramAccounts with filter support
-      const accounts = await this.program.account["rule"].all([
+      const accounts = await (this.program.account as any)["rule"].all([
         {
           // status field is at a known offset in the Rule account
           // Status::Active = 0 (first enum variant)
@@ -45,7 +41,7 @@ export class RegistryLoader {
         },
       ]);
 
-      const rules: ActiveRule[] = accounts.map((acc) => {
+      const rules: ActiveRule[] = accounts.map((acc: any) => {
         const data = acc.account as any;
         return {
           ruleId: "0x" + Buffer.from(data.ruleId).toString("hex"),

@@ -43,9 +43,13 @@ async function main(): Promise<void> {
 
   // ── Initialize components ────────────────────────────────────────────────
   const watcher = new EthWatcher();
+  logger.info("Initialized Ethereum watcher");
   const prover = new ProofGenerator();
+  logger.info("Initialized proof generator");
   const submitter = new SolanaSubmitter();
+  logger.info("Initialized Solana submitter");
   const loader = new RegistryLoader(provider);
+  logger.info("Initialized registry loader");
 
   // ── Load active rules and start watching ─────────────────────────────────
   const activeRules = await loader.loadActiveRules();
