@@ -240,11 +240,17 @@ async fn fetch_block_header_rlp(
     anyhow::bail!("debug_getRawHeader not available — use an archive node (Alchemy, Infura archive)")
 }
 
+fn pad_hex(s: &str) -> String {
+    if s.len() % 2 == 1 { format!("0{}", s) } else { s.to_string() }
+}
+
+
 fn encode_account_rlp(nonce_hex: &str, balance_hex: &str, storage_hash: &str, code_hash: &str) -> Result<Vec<u8>> {
-    let nonce_bytes   = hex::decode(if nonce_hex.is_empty()   { "00" } else { nonce_hex })?;
-    let balance_bytes = hex::decode(if balance_hex.is_empty() { "00" } else { balance_hex })?;
-    let storage_bytes = hex::decode(storage_hash)?;
-    let code_bytes    = hex::decode(code_hash)?;
+    let nonce_bytes   = hex::decode(pad_hex(if nonce_hex.is_empty()    { "00" } else { nonce_hex }))?;
+    let balance_bytes = hex::decode(pad_hex(if balance_hex.is_empty()  { "00" } else { balance_hex }))?;
+    let storage_bytes = hex::decode(pad_hex(if storage_hash.is_empty() { "00" } else { storage_hash }))?;
+    let code_bytes    = hex::decode(pad_hex(if code_hash.is_empty()    { "00" } else { code_hash }))?;
+
 
     let mut encoded = Vec::new();
     rlp_encode_item(&nonce_bytes,   &mut encoded);
