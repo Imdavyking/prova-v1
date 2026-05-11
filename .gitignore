@@ -104,4 +104,4 @@ prover-cli
 
 # temp proof outputs
 tmp_proof*
-proof*.bin
+*.bin
