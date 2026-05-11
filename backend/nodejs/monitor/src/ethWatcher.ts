@@ -181,6 +181,15 @@ export class EthWatcher extends EventEmitter {
       const balance = balanceMap.get(key);
       if (balance === undefined) continue;
 
+      logger.info("Balance check", {
+        ruleId: rule.ruleId.slice(0, 10),
+        address: rule.watchAddress,
+        balance: ethers.formatEther(balance) + " ETH",
+        threshold: ethers.formatEther(rule.thresholdWei) + " ETH",
+        block: blockNumber,
+        triggered: balance < rule.thresholdWei,
+      });
+
       if (balance < rule.thresholdWei) {
         logger.info("🔔 Condition triggered!", {
           ruleId: rule.ruleId,

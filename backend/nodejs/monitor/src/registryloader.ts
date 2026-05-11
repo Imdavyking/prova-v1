@@ -20,7 +20,11 @@ export class RegistryLoader {
   private program: anchor.Program;
 
   constructor(provider: anchor.AnchorProvider) {
-    this.program = new anchor.Program(RegistryIDL as anchor.Idl, provider);
+    this.program = new anchor.Program(
+      RegistryIDL as anchor.Idl,
+
+      provider,
+    );
   }
 
   /** Fetch all Rule accounts with status == Active */
@@ -41,19 +45,23 @@ export class RegistryLoader {
         },
       ]);
 
-      const rules: ActiveRule[] = accounts.map((acc: any) => {
-        const data = acc.account as any;
-        return {
-          ruleId: "0x" + Buffer.from(data.ruleId).toString("hex"),
-          owner: data.owner.toBase58(),
-          watchAddress: "0x" + Buffer.from(data.watchAddress).toString("hex"),
-          tokenAddress: "0x" + Buffer.from(data.tokenAddress).toString("hex"),
-          thresholdWei: bufferToBigInt(Buffer.from(data.thresholdWei)),
-          recipient: data.recipient.toBase58(),
-          tokenMint: data.tokenMint.toBase58(),
-          actionAmount: BigInt(data.actionAmount.toString()),
-        };
-      });
+      const TEST_ADDRESS = "0x" + "01".repeat(20);
+
+      const rules: ActiveRule[] = accounts
+        .map((acc: any) => {
+          const data = acc.account as any;
+          return {
+            ruleId: "0x" + Buffer.from(data.ruleId).toString("hex"),
+            owner: data.owner.toBase58(),
+            watchAddress: "0x" + Buffer.from(data.watchAddress).toString("hex"),
+            tokenAddress: "0x" + Buffer.from(data.tokenAddress).toString("hex"),
+            thresholdWei: bufferToBigInt(Buffer.from(data.thresholdWei)),
+            recipient: data.recipient.toBase58(),
+            tokenMint: data.tokenMint.toBase58(),
+            actionAmount: BigInt(data.actionAmount.toString()),
+          };
+        })
+        .filter((r: any) => r.watchAddress.toLowerCase() !== TEST_ADDRESS);
 
       logger.info(`Loaded ${rules.length} active rules`);
       return rules;
@@ -66,6 +74,10 @@ export class RegistryLoader {
   /** Subscribe to RuleRegistered events and add new rules dynamically */
   subscribeToNewRules(onNewRule: (rule: ActiveRule) => void): void {
     this.program.addEventListener("ruleRegistered", (event: any) => {
+      const watchAddress =
+        "0x" + Buffer.from(event.watchAddress).toString("hex");
+      if (watchAddress.toLowerCase() === "0x" + "01".repeat(20)) return;
+
       logger.info("New rule registered", {
         ruleId: Buffer.from(event.ruleId).toString("hex"),
       });
@@ -73,7 +85,7 @@ export class RegistryLoader {
       const rule: ActiveRule = {
         ruleId: "0x" + Buffer.from(event.ruleId).toString("hex"),
         owner: event.owner.toBase58(),
-        watchAddress: "0x" + Buffer.from(event.watchAddress).toString("hex"),
+        watchAddress,
         tokenAddress: "0x0000000000000000000000000000000000000000",
         thresholdWei: bufferToBigInt(Buffer.from(event.thresholdWei)),
         recipient: event.recipient.toBase58(),
