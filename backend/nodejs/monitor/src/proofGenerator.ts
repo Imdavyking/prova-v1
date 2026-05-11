@@ -1,12 +1,6 @@
 // monitor/src/proofGenerator.ts
-//
-// Invokes the SP1 Rust proof generation script as a subprocess.
-// Returns the raw Groth16 proof bytes and decoded public inputs.
-
-import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import { logger } from "./logger";
 import { config } from "./config";
 import { TriggerEvent } from "./ethWatcher";
@@ -16,139 +10,112 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export interface GeneratedProof {
-  proofBytes: Buffer; // Raw Groth16 proof bytes for Solana
+  proofBytes: Buffer;
   publicInputs: {
     blockNumber: number;
-    stateRoot: string; // 0x-prefixed hex
-    walletAddress: string; // 0x-prefixed hex
-    thresholdWei: string; // decimal string
-    ruleId: string; // 0x-prefixed hex
+    stateRoot: string;
+    walletAddress: string;
+    thresholdWei: string;
+    ruleId: string;
   };
-  vkHash: string; // hex — must match BALANCE_PROVER_VK_HASH in Rust
+  vkHash: string;
 }
 
 export class ProofGenerator {
-  private scriptBin: string;
+  private wasmBuffer: Buffer | null = null;
+  private isInitialized = false;
 
   constructor() {
-    this.scriptBin = path.resolve(
-      __dirname, // monitor/src/
-      "../../", // backend/
-      config.sp1ScriptPath,
-      "release/prova-prove",
-    );
+    this.loadWasm();
+  }
 
-    logger.info("SP1 prover binary", { path: this.scriptBin });
+  private loadWasm() {
+    const wasmPath = path.resolve(__dirname, "../../proof.wasm"); // Adjust path as needed
+    this.wasmBuffer = fs.readFileSync(wasmPath);
+    logger.info("Gnark WASM loaded", { size: this.wasmBuffer.length });
+  }
+
+  async init() {
+    if (this.isInitialized) return;
+
+    // Load wasm_exec.js (Go glue code)
+    const wasmExecPath = path.resolve(__dirname, "../../wasm_exec.js");
+    require(wasmExecPath); // This defines global Go()
+
+    this.isInitialized = true;
+    logger.info("✅ Gnark WASM + Go runtime initialized");
   }
 
   async generate(event: TriggerEvent): Promise<GeneratedProof> {
+    await this.init();
+
     const { rule, blockNumber } = event;
 
-    logger.info("Generating ZK proof...", {
+    logger.info("Generating Gnark proof...", {
       ruleId: rule.ruleId,
       block: blockNumber,
       wallet: rule.watchAddress,
-      threshold: rule.thresholdWei.toString(),
     });
 
-    // Write proof to a temp file
-    const tmpDir = os.tmpdir();
-    const outFile = path.join(
-      tmpDir,
-      `proof_${rule.ruleId.slice(2, 10)}_${blockNumber}.json`,
-    );
-
-    const args = [
-      "--rpc-url",
-      config.ethRpcUrl,
-      "--block",
-      blockNumber.toString(),
-      "--wallet",
-      rule.watchAddress,
-      "--threshold",
-      rule.thresholdWei.toString(),
-      "--rule-id",
-      rule.ruleId,
-      "--output",
-      outFile,
-    ];
-
-    if (config.proverMode === "network") {
-      args.push("--use-network");
-    }
-
-    const env = {
-      ...process.env,
-      RUST_LOG: "info",
-      SP1_PRIVATE_KEY: process.env["SP1_PRIVATE_KEY"] ?? "",
-    };
-
-    logger.info("Running SP1 prover...", { args: args.join(" ") });
     const start = Date.now();
 
-    // Stream stdout/stderr in real time so we see proving progress
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(this.scriptBin, args, { env });
+    // Prepare input for your Go prover (adjust according to what your Go main expects)
+    const inputData = {
+      rpcUrl: config.ethRpcUrl,
+      blockNumber: blockNumber,
+      wallet: rule.watchAddress,
+      threshold: rule.thresholdWei.toString(),
+      ruleId: rule.ruleId,
+      // Add any other fields your Gnark circuit / Go prover needs
+    };
 
-      child.stdout.on("data", (d: Buffer) =>
-        logger.info("[prover] " + d.toString().trimEnd()),
-      );
-      child.stderr.on("data", (d: Buffer) =>
-        logger.info("[prover] " + d.toString().trimEnd()),
-      );
-
-      const timer = setTimeout(() => {
-        child.kill();
-        reject(new Error("SP1 prover timed out after 5 minutes"));
-      }, 300_000);
-
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`prova-prove exited with code ${code}`));
-        }
-      });
-
-      child.on("error", (err) => {
-        clearTimeout(timer);
-        logger.error("Proof generation failed", { error: String(err) });
-        reject(err);
-      });
-    });
+    // Call the global function exposed by your Go WASM
+    const result = await this.callGoProver(inputData);
 
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    logger.info(`✓ Proof generated in ${elapsed}s`);
+    logger.info(`✓ Gnark proof generated in ${elapsed}s`);
 
-    // ── Parse output file ──────────────────────────────────────────────
-    if (!fs.existsSync(outFile)) {
-      throw new Error(`Proof output file not found: ${outFile}`);
-    }
-
-    const raw = JSON.parse(fs.readFileSync(outFile, "utf8"));
-
-    // Clean up temp file
-    fs.unlinkSync(outFile);
-
-    const proofBytes = Buffer.from(raw.proof_bytes as string, "hex");
-
-    logger.info("Proof details", {
-      size: proofBytes.length,
-      vkHash: raw.vk_hash,
-      block: raw.public_inputs.block_number,
-    });
+    const proofBytes = Buffer.from(result.proof, "hex"); // or whatever format your Go returns
 
     return {
       proofBytes,
       publicInputs: {
-        blockNumber: raw.public_inputs.block_number,
-        stateRoot: raw.public_inputs.state_root,
-        walletAddress: raw.public_inputs.wallet_address,
-        thresholdWei: raw.public_inputs.threshold_wei.toString(),
-        ruleId: raw.public_inputs.rule_id,
+        blockNumber: result.publicInputs.blockNumber,
+        stateRoot: result.publicInputs.stateRoot,
+        walletAddress: result.publicInputs.walletAddress,
+        thresholdWei: result.publicInputs.thresholdWei.toString(),
+        ruleId: result.publicInputs.ruleId,
       },
-      vkHash: raw.vk_hash,
+      vkHash: result.vkHash || "your_vk_hash_here",
     };
+  }
+
+  private async callGoProver(input: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const go = new (globalThis as any).Go();
+
+      WebAssembly.instantiate(this.wasmBuffer!, go.importObject)
+        .then((result) => {
+          go.run((result as any).instance);
+
+          // Call the function your Go code exposes on the global scope
+          // Example: assuming your Go code does something like:
+          //   js.Global().Set("generateProof", js.FuncOf(...))
+          const proofResult = (globalThis as any).generateProof?.(
+            JSON.stringify(input),
+          );
+
+          if (proofResult) {
+            resolve(
+              typeof proofResult === "string"
+                ? JSON.parse(proofResult)
+                : proofResult,
+            );
+          } else {
+            reject(new Error("generateProof function not found on global"));
+          }
+        })
+        .catch(reject);
+    });
   }
 }
