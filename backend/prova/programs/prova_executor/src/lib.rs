@@ -7,6 +7,31 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
 use sp1_solana::{verify_proof, GROTH16_VK_2_0_0_BYTES};
+pub mod proof_helper;
+pub mod vk;
+use proof_helper::ProofHelper;
+
+
+// let public_inputs = ProofHelper::verify_and_extract(
+//     &proof_bytes,
+//     &public_witness_bytes,
+//     &vk::VK,
+// )?;
+
+// // Validate against registered rule
+// require!(
+//     public_inputs.rule_id == rule.rule_id,
+//     ProvaError::RuleIdMismatch
+// );
+// require!(
+//     public_inputs.wallet_address == rule.watch_address,
+//     ProvaError::WalletMismatch
+// );
+// require!(
+//     public_inputs.threshold_wei == rule.threshold_wei,
+//     ProvaError::ThresholdMismatch
+// );
+
 
 declare_id!("9cgBVGFfx2XmMhD9L9U7b6xfgSe4MageWcWnn4NUi9dL");
 

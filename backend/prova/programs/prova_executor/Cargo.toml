@@ -17,6 +17,7 @@ anchor-spl    = { workspace = true }
 arcium-anchor = { workspace = true }
 sp1-solana    = { workspace = true }
 borsh         = { workspace = true }
+gnark-verifier-solana = "1.0.2"
 
 [features]
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build", "arcium-anchor/idl-build"]
