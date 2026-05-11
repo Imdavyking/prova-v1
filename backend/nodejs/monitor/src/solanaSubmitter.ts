@@ -6,6 +6,7 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
+  SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
@@ -36,6 +37,7 @@ import { ActiveRule } from "./ethWatcher";
 
 import RegistryIDL from "../../target/idl/prova_registry.json";
 import ExecutorIDL from "../../target/idl/prova_executor.json";
+import { TOKEN_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
 
 export class SolanaSubmitter {
   private connection: Connection;
@@ -267,18 +269,6 @@ export class SolanaSubmitter {
     const pad = (hex: string, len: number) =>
       hex.replace("0x", "").padStart(len * 2, "0");
 
-    const publicInputsArg = {
-      blockNumber: new BN(pi.block_number.toString()),
-
-      stateRoot: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
-
-      walletAddress: Array.from(Buffer.from(pad(pi.wallet_address, 20), "hex")),
-
-      // thresholdWei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
-
-      ruleId: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
-    };
-
     const watchbuf = Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex");
 
     console.log("watchAddress length:", watchbuf.length);
@@ -299,12 +289,8 @@ export class SolanaSubmitter {
 
     return await this.executorProgram.methods
       .submitProofAndExecute(
-        Buffer.from('0x00'.replace(/^0x/, ""), "hex"),
-        Buffer.from('0x00'.replace(/^0x/, ""), "hex"),
-
-        // Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
-
-        publicInputsArg,
+        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
+        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
 
         Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
 
@@ -328,9 +314,8 @@ export class SolanaSubmitter {
           microLamports: 1,
         }),
       ])
-      .accountsPartial({
+      .accountsStrict({
         feePayer: this.monitorKeypair.publicKey,
-        rule: rulePda,
         pendingExecution,
         vaultTokenAccount,
         vaultAuthority,
@@ -350,8 +335,19 @@ export class SolanaSubmitter {
         ),
         signPdaAccount,
         systemProgram: SystemProgram.programId,
+        poolAccount: new PublicKey(
+          "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC",
+        ),
+        clockAccount: new PublicKey(
+          "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot",
+        ),
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        arciumProgram: new PublicKey(
+          "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+        ),
       })
-      .instruction() // <-- build the ix, don't send yet
-      .then((ix) => this.sendVersionedTx(ix));
+      .signers([this.monitorKeypair])
+      .rpc({ commitment: "confirmed" });
   }
 }
