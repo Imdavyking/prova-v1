@@ -41,8 +41,7 @@ pub struct BalanceProofWitness {
 // ── ELF compiled by `cargo prove build` in program/ ─────────────────────────
 // NOTE: SP1 builds to riscv64im, not riscv32im.
 const PROVER_ELF: &[u8] =
-    include_bytes!("../../../target/elf-compilation/riscv64im-succinct-zkvm-elf/release/balance-prover");
-
+    include_bytes!("../../target/elf-compilation/riscv64im-succinct-zkvm-elf/release/balance-prover");
 #[derive(Debug, clap::Parser)]
 #[command(name = "prova-prove")]
 struct Args {
