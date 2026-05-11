@@ -113,9 +113,11 @@ async fn main() -> Result<()> {
     }
 
     let client = ProverClient::from_env().await;
+
+    println!("✓ Prover client initialized");
     let pk = client.setup(sp1_sdk::Elf::Static(PROVER_ELF)).await?;
 
-
+    println!("✓ Proving key loaded. Verifying key hash: 0x{}", hex::encode(pk.verifying_key().bytes32()));
 
     // ── 4. Generate Groth16 proof ────────────────────────────────────────
    let proof: SP1ProofWithPublicValues = client
