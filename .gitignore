@@ -92,3 +92,16 @@ temp/
 
 # Added
 output.json
+
+# ZK / Noir artifacts
+*.pk
+*.ccs
+*.wasm
+prover-cli
+
+# logs
+*.log
+
+# temp proof outputs
+tmp_proof*
+proof*.bin

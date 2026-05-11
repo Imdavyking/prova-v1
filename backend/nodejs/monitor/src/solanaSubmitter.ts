@@ -231,79 +231,49 @@ export class SolanaSubmitter {
       hex.replace("0x", "").padStart(len * 2, "0");
 
     const publicInputsArg = {
-      blockNumber: new BN(pi.block_number),
-      stateRoot: (Buffer.from(pad(pi.state_root, 32), "hex")),
-      walletAddress: (Buffer.from(pad(pi.wallet_address, 20), "hex")),
-      thresholdWei: (Buffer.from(pad(pi.threshold_wei, 32), "hex")),
-      ruleId: (Buffer.from(pad(pi.rule_id, 32), "hex")),
+      blockNumber: Number(pi.block_number),
+      stateRoot: Buffer.from(pad(pi.state_root, 32), "hex"),
+      walletAddress: Buffer.from(pad(pi.wallet_address, 20), "hex"),
+      thresholdWei: Buffer.from(pad(pi.threshold_wei, 32), "hex"),
+      ruleId: Buffer.from(pad(pi.rule_id, 32), "hex"),
     };
 
-    const piDebug = {
-  stateRoot:    Buffer.from(pad(pi.state_root,     32), "hex").length,
-  walletAddress: Buffer.from(pad(pi.wallet_address, 20), "hex").length,
-  thresholdWei: Buffer.from(pad(pi.threshold_wei,  32), "hex").length,
-  ruleId:       Buffer.from(pad(pi.rule_id,        32), "hex").length,
-};
+    const watchbuf = Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex");
 
-const argsDebug = {
-  proofBytes:       Buffer.from(proof.proof.replace(/^0x/, ""), "hex").length,
-  publicValues:     Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex").length,
-  watchAddress:     Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex").length,
-  thresholdWei:     Buffer.from(BigInt(rule.thresholdWei).toString(16).padStart(64, "0"), "hex").length,
-  encryptedAmount:  Buffer.from(encryptedAmount).length,
-  encryptedRecipient: Buffer.from(encryptedRecipient).length,
-  pubKey:           Buffer.from(pubKey).length,
-};
-
-console.log("publicInputsArg field lengths:", piDebug);
-console.log("top-level arg lengths:", argsDebug);
-console.log("raw pi values:", {
-  state_root:    pi.state_root,
-  wallet_address: pi.wallet_address,
-  threshold_wei: pi.threshold_wei,
-  rule_id:       pi.rule_id,
-});
+    console.log("watchAddress length:", watchbuf.length);
+    const thresholdBuf = Buffer.from(
+      BigInt(rule.thresholdWei).toString(16).padStart(64, "0"),
+      "hex",
+    );
+    console.log("thresholdWei length:", thresholdBuf.length);
 
     return await this.executorProgram.methods
       .submitProofAndExecute(
-        // proof_bytes (Vec<u8>)
-        (Buffer.from(proof.proof.replace(/^0x/, ""), "hex")),
+        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
 
-        // public_values (Vec<u8>)
-        (Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex")),
+        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
 
-        // public_inputs (struct)
         publicInputsArg,
 
-        // rule_watch_address [u8;20]
-        (Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex")),
+        Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
 
-        // rule_threshold_wei [u8;32]
-        (
-          Buffer.from(
-            BigInt(rule.thresholdWei).toString(16).padStart(64, "0"),
-            "hex",
-          ),
-        ),
+        thresholdBuf,
 
-        // rule_recipient (pubkey)
         new PublicKey(rule.recipient),
 
-        // rule_token_mint (pubkey)
         new PublicKey(rule.tokenMint),
 
-        // rule_action_amount (u64) → SAFE primitive (NOT BN)
-        Number(rule.actionAmount),
+        new BN(rule.actionAmount.toString()),
 
-        // computation_offset (u64)
-        Number(computationOffset.toString()),
+        new BN(computationOffset.toString()),
 
         Buffer.from(encryptedAmount),
+
         Buffer.from(encryptedRecipient),
+
         Buffer.from(pubKey),
 
-        // nonce (u128) → safest as BigInt
-        BigInt(nonce.toString()),
+        nonce,
       )
       .accountsPartial({
         feePayer: this.monitorKeypair.publicKey,
@@ -314,7 +284,7 @@ console.log("raw pi values:", {
         recipientTokenAccount,
         tokenMint,
         ruleTokenMint: new PublicKey(rule.tokenMint),
-        // Arcium PDA helpers — exact same pattern as hello-world test
+
         computationAccount: getComputationAccAddress(
           clusterOffset,
           computationOffset,
@@ -332,5 +302,4 @@ console.log("raw pi values:", {
       .signers([this.monitorKeypair])
       .rpc({ commitment: "confirmed" });
   }
-
 }
