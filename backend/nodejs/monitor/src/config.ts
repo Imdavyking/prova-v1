@@ -28,7 +28,7 @@ export const config = {
   // ── SP1 Prover ─────────────────────────────────────────────────────────
   // "local" | "network"
   proverMode: process.env["PROVER_MODE"] ?? "local",
-  sp1ScriptPath: process.env["SP1_SCRIPT_PATH"] ?? "../sp1-prover/script",
+  sp1ScriptPath: process.env["SP1_SCRIPT_PATH"] ?? "../prova/sp1-prover/target",
 
   // ── Arcium ─────────────────────────────────────────────────────────────
   arciumCluster: process.env["ARCIUM_CLUSTER"] ?? "devnet",
