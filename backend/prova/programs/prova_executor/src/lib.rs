@@ -138,7 +138,6 @@ pub mod prova_executor {
         ctx: Context<SubmitProofAndExecute>,
         proof_bytes: Vec<u8>,
         public_values: Vec<u8>,
-        public_inputs: BalanceProofPublicInputs,
         rule_watch_address: [u8; 20],
         rule_threshold_wei: [u8; 32],
         rule_recipient: Pubkey,
@@ -307,7 +306,6 @@ pub struct InitExecuteTransferCompDef<'info> {
 #[instruction(
     proof_bytes:        Vec<u8>,
     public_values:      Vec<u8>,
-    public_inputs:      BalanceProofPublicInputs,
     rule_watch_address: [u8; 20],
     rule_threshold_wei: [u8; 32],
     rule_recipient:     Pubkey,
