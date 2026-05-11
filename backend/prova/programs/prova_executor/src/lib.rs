@@ -93,18 +93,7 @@ pub enum ErrorCode {
 // Marking these helpers #[inline(never)] gives each its own frame, keeping the
 // caller's frame small.
 
-/// Verifies the SP1 Groth16 proof. Own frame via #[inline(never)].
-#[inline(never)]
-fn verify_sp1_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<()> {
-    // verify_proof(
-    //     proof_bytes,
-    //     public_values,
-    //     BALANCE_PROVER_VK_HASH,
-    //     GROTH16_VK_2_0_0_BYTES,
-    // )
-    // .map_err(|_| ErrorCode::InvalidProof.into())
-    Ok(())
-}
+/// Verifies the Noir proof and extracts public inputs. Own frame via #[inline(never)].
 
 #[inline(never)]
 fn verify_noir_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<ProvaPublicInputs> {
@@ -162,7 +151,6 @@ pub mod prova_executor {
         nonce: u128,
     ) -> Result<()> {
         // ── 1. Verify SP1 proof (own stack frame) ─────────────────────────────
-        verify_sp1_proof(&proof_bytes, &public_values)?;
 
         let public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
 
