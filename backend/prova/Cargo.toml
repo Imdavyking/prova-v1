@@ -16,9 +16,6 @@ anchor-lang      = { version = "0.32.1", features = ["init-if-needed"] }
 anchor-spl       = { version = "0.32.1" }
 arcium-anchor = { version = "=0.9.7" }
 arcium-client  = { version = "=0.9.7", default-features = false }
-sp1-sdk          = { version = "4.0.0" }
-sp1-zkvm         = { version = "4.0.0", default-features = false }
-sp1-solana       = { version = "0.1.0" }
 alloy-primitives = { version = "0.7" }
 serde            = { version = "1.0", features = ["derive"] }
 serde_json       = "1.0"

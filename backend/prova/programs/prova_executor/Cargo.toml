@@ -15,7 +15,6 @@ anchor-lang   = { workspace = true }
 arcium-client  = { workspace = true }
 anchor-spl    = { workspace = true }
 arcium-anchor = { workspace = true }
-sp1-solana    = { workspace = true }
 borsh         = { workspace = true }
 gnark-verifier-solana = "1.0.2"
 

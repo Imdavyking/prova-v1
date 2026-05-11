@@ -6,55 +6,21 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
-use sp1_solana::{verify_proof, GROTH16_VK_2_0_0_BYTES};
+pub mod errors;
 pub mod proof_helper;
 pub mod vk;
-use proof_helper::ProofHelper;
-
-
-// let public_inputs = ProofHelper::verify_and_extract(
-//     &proof_bytes,
-//     &public_witness_bytes,
-//     &vk::VK,
-// )?;
-
-// // Validate against registered rule
-// require!(
-//     public_inputs.rule_id == rule.rule_id,
-//     ProvaError::RuleIdMismatch
-// );
-// require!(
-//     public_inputs.wallet_address == rule.watch_address,
-//     ProvaError::WalletMismatch
-// );
-// require!(
-//     public_inputs.threshold_wei == rule.threshold_wei,
-//     ProvaError::ThresholdMismatch
-// );
-
+use proof_helper::{ProofHelper, ProvaPublicInputs};
 
 declare_id!("9cgBVGFfx2XmMhD9L9U7b6xfgSe4MageWcWnn4NUi9dL");
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-pub const BALANCE_PROVER_VK_HASH: &str =
-    "0x007153c5b0763478a99a517ba9d7c55c9970c7aa01fc5bf7d49514115e4309e4";
 
 pub const COMP_DEF_OFFSET_EXECUTE_TRANSFER: u32 = comp_def_offset("execute_transfer");
 
 pub const VAULT_SEED: &[u8] = b"prova_vault";
 pub const PENDING_SEED: &[u8] = b"pending_exec";
 
-// ─── Public proof inputs ──────────────────────────────────────────────────────
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct BalanceProofPublicInputs {
-    pub block_number: u64,
-    pub state_root: [u8; 32],
-    pub wallet_address: [u8; 20],
-    pub threshold_wei: [u8; 32],
-    pub rule_id: [u8; 32],
-}
+// ─── Public proof inputs (defined in proof_helper::ProvaPublicInputs) ─────────
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +60,7 @@ pub struct TransferExecuted {
 
 #[error_code]
 pub enum ErrorCode {
-    #[msg("SP1 proof verification failed")]
+    #[msg("Proof verification failed")]
     InvalidProof,
     #[msg("Proof public inputs do not match rule")]
     PublicInputMismatch,
@@ -109,26 +75,21 @@ pub enum ErrorCode {
 // ─── Stack helpers ────────────────────────────────────────────────────────────
 //
 // `submit_proof_and_execute` has many large array parameters ([u8;32] x5 plus the
-// BalanceProofPublicInputs struct), pushing the SBF frame over the 4096-byte limit.
+// ProvaPublicInputs struct), pushing the SBF frame over the 4096-byte limit.
 // Marking these helpers #[inline(never)] gives each its own frame, keeping the
 // caller's frame small.
 
-/// Verifies the SP1 Groth16 proof. Own frame via #[inline(never)].
+/// Verifies the Noir/Gnark Groth16 proof and extracts public inputs. Own frame via #[inline(never)].
 #[inline(never)]
-fn verify_sp1_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<()> {
-    verify_proof(
-        proof_bytes,
-        public_values,
-        BALANCE_PROVER_VK_HASH,
-        GROTH16_VK_2_0_0_BYTES,
-    )
-    .map_err(|_| ErrorCode::InvalidProof.into())
+fn verify_noir_proof(proof_bytes: &[u8], public_witness_bytes: &[u8]) -> Result<ProvaPublicInputs> {
+    ProofHelper::verify_and_extract(proof_bytes, public_witness_bytes, &vk::VK)
+        .map_err(|_| ErrorCode::InvalidProof.into())
 }
 
 /// Validates public inputs against rule parameters. Own frame via #[inline(never)].
 #[inline(never)]
 fn validate_inputs(
-    public_inputs: &BalanceProofPublicInputs,
+    public_inputs: &ProvaPublicInputs,
     rule_watch_address: &[u8; 20],
     rule_threshold_wei: &[u8; 32],
 ) -> Result<()> {
@@ -162,7 +123,6 @@ pub mod prova_executor {
         ctx: Context<SubmitProofAndExecute>,
         proof_bytes: Vec<u8>,
         public_values: Vec<u8>,
-        public_inputs: BalanceProofPublicInputs,
         rule_watch_address: [u8; 20],
         rule_threshold_wei: [u8; 32],
         rule_recipient: Pubkey,
@@ -174,8 +134,8 @@ pub mod prova_executor {
         pub_key: [u8; 32],
         nonce: u128,
     ) -> Result<()> {
-        // ── 1. Verify SP1 proof (own stack frame) ─────────────────────────────
-        verify_sp1_proof(&proof_bytes, &public_values)?;
+        // ── 1. Verify Noir proof & extract public inputs (own stack frame) ────
+        let public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
 
         // ── 2. Validate public inputs (own stack frame) ───────────────────────
         validate_inputs(&public_inputs, &rule_watch_address, &rule_threshold_wei)?;
@@ -330,7 +290,6 @@ pub struct InitExecuteTransferCompDef<'info> {
 #[instruction(
     proof_bytes:        Vec<u8>,
     public_values:      Vec<u8>,
-    public_inputs:      BalanceProofPublicInputs,
     rule_watch_address: [u8; 20],
     rule_threshold_wei: [u8; 32],
     rule_recipient:     Pubkey,

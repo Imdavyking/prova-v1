@@ -5,11 +5,11 @@ use gnark_verifier_solana::{proof::GnarkProof, verifier::GnarkVerifier, witness:
 
 #[derive(Debug, Clone)]
 pub struct ProvaPublicInputs {
-    pub block_number:   u64,
-    pub state_root:     [u8; 32],
+    pub block_number: u64,
+    pub state_root: [u8; 32],
     pub wallet_address: [u8; 20],
-    pub threshold_wei:  [u8; 32],
-    pub rule_id:        [u8; 32],
+    pub threshold_wei: [u8; 32],
+    pub rule_id: [u8; 32],
 }
 
 impl ProvaPublicInputs {
@@ -17,11 +17,11 @@ impl ProvaPublicInputs {
         let mut wallet = [0u8; 20];
         wallet.copy_from_slice(&entries[2][12..32]);
         Self {
-            block_number:   u64::from_be_bytes(entries[0][24..32].try_into().unwrap()),
-            state_root:     entries[1],
+            block_number: u64::from_be_bytes(entries[0][24..32].try_into().unwrap()),
+            state_root: entries[1],
             wallet_address: wallet,
-            threshold_wei:  entries[3],
-            rule_id:        entries[4],
+            threshold_wei: entries[3],
+            rule_id: entries[4],
         }
     }
 }
