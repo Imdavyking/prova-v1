@@ -91,6 +91,7 @@ async fn main() -> Result<()> {
         &args.rule_id,
     ).await.context("Failed to fetch Ethereum proof data")?;
 
+
     println!("✓ Block header fetched. State root: 0x{}", hex::encode(public_inputs.state_root));
     println!("✓ Account proof fetched ({} nodes)", witness.account_proof.len());
 
@@ -163,6 +164,7 @@ async fn fetch_eth_proof_data(
     threshold_str: &str,
     rule_id_hex:   &str,
 ) -> Result<(BalanceProofPublicInputs, BalanceProofWitness)> {
+
     let client = reqwest::Client::new();
 
     let block_hex = format!("0x{:x}", block_number);
