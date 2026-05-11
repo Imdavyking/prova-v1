@@ -274,7 +274,7 @@ SP1_PRIVATE_KEY=
 ```bash
 cd backend/prova/sp1-prover/
 
-cargo build --release
+cargo build --release -p prova-prove
 
 cd backend/prova/sp1-prover/program
 
