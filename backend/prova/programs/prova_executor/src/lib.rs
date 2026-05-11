@@ -138,6 +138,7 @@ pub mod prova_executor {
         ctx: Context<SubmitProofAndExecute>,
         proof_bytes: Vec<u8>,
         public_values: Vec<u8>,
+        public_inputs: BalanceProofPublicInputs,
         rule_watch_address: [u8; 20],
         rule_threshold_wei: [u8; 32],
         rule_recipient: Pubkey,
@@ -151,10 +152,10 @@ pub mod prova_executor {
     ) -> Result<()> {
         // ── 1. Verify SP1 proof (own stack frame) ─────────────────────────────
 
-        let public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
+        let calc_public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
 
         // ── 2. Validate public inputs (own stack frame) ───────────────────────
-        validate_inputs(&public_inputs, &rule_watch_address, &rule_threshold_wei)?;
+        validate_inputs(&calc_public_inputs, &rule_watch_address, &rule_threshold_wei)?;
 
         emit!(ProofVerified {
             rule_id: public_inputs.rule_id,
@@ -306,6 +307,7 @@ pub struct InitExecuteTransferCompDef<'info> {
 #[instruction(
     proof_bytes:        Vec<u8>,
     public_values:      Vec<u8>,
+    public_inputs:      BalanceProofPublicInputs,
     rule_watch_address: [u8; 20],
     rule_threshold_wei: [u8; 32],
     rule_recipient:     Pubkey,
