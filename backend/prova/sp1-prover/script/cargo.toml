@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 name = "prova-prove"
-path = "src/lib.rs"
+path = "src/main.rs"
 
 [dependencies]
 sp1-sdk          = { workspace = true }

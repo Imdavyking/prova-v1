@@ -80,7 +80,7 @@ struct Args {
 async fn main() -> Result<()> {
     let args = <Args as clap::Parser>::parse();
 
-    println!("🔍 Fetching Ethereum state at block {}...", args.block);
+    println!("🔍 Fetching Ethereum state at blocks {}...", args.block);
 
     // ── 1. Fetch block header and account proof from Ethereum ────────────
     let (public_inputs, witness) = fetch_eth_proof_data(
@@ -164,7 +164,7 @@ async fn fetch_eth_proof_data(
     threshold_str: &str,
     rule_id_hex:   &str,
 ) -> Result<(BalanceProofPublicInputs, BalanceProofWitness)> {
-
+   eprintln!("  Fetching block header and account proof from Ethereum node...");
     let client = reqwest::Client::new();
 
     let block_hex = format!("0x{:x}", block_number);
