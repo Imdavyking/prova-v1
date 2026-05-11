@@ -112,7 +112,11 @@ export class SolanaSubmitter {
     const ruleData = await this.registryProgram.account.rule.fetch(rulePda);
     const status = Object.keys(ruleData.status)[0];
     logger.info(`Current rule status: ${status}`);
-    if (status === "triggered" || status === "proving" || status === "executed") {
+    if (
+      status === "triggered" ||
+      status === "proving" ||
+      status === "executed"
+    ) {
       logger.warn(
         "Rule is already in triggered/proving/executed state, skipping markTriggered",
       );
@@ -222,11 +226,68 @@ export class SolanaSubmitter {
       new PublicKey(rule.recipient),
     );
 
-    return this.executorProgram.methods
+    //     Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
+    //     this.encodePublicInputs(proof),
+    //     new Uint8Array(
+    //       Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
+    //     ), // [u8;20]
+    //     new BN(rule.thresholdWei).toArrayLike(Buffer, "le", 32),
+    //     new PublicKey(rule.recipient),
+    //     new PublicKey(rule.tokenMint),
+    //     new BN(rule.actionAmount),
+
+    //     computationOffset,
+
+    //     encryptedAmount,
+    //     encryptedRecipient,
+    //     pubKey,
+    //     nonce,
+
+    // i want to log everything(but hex limited to first 32 chars) before this call to make sure all the data is correct and properly formatted, since it's the most complex part of the code and easy to mess up
+
+    logger.info("Submitting proof with the following data:", {
+      proof: proof.proof.slice(0, 34) + "...",
+      publicInputs: proof.publicInputs.slice(0, 34) + "...",
+      encodedPublicInputs: this.encodePublicInputs(proof),
+      watchAddress: rule.watchAddress,
+      thresholdWei: rule.thresholdWei.toString(),
+      recipient: rule.recipient,
+      tokenMint: rule.tokenMint,
+      actionAmount: rule.actionAmount.toString(),
+      computationOffset: computationOffset.toString(),
+      encryptedAmount:
+        encryptedAmount
+          .slice(0, 10)
+          .map((n) => n.toString(16))
+          .join(" ") + "...",
+      encryptedRecipient:
+        encryptedRecipient
+          .slice(0, 10)
+          .map((n) => n.toString(16))
+          .join(" ") + "...",
+      pubKey:
+        pubKey
+          .slice(0, 10)
+          .map((n) => n.toString(16))
+          .join(" ") + "...",
+      nonce: nonce.toString(),
+    });
+
+    return await this.executorProgram.methods
       .submitProofAndExecute(
-        Array.from(proof.proofBytes),
+        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
+        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
         this.encodePublicInputs(proof),
+        new Uint8Array(
+          Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
+        ), // [u8;20]
+        new BN(rule.thresholdWei).toArrayLike(Buffer, "le", 32),
+        new PublicKey(rule.recipient),
+        new PublicKey(rule.tokenMint),
+        new BN(rule.actionAmount),
+
         computationOffset,
+
         encryptedAmount,
         encryptedRecipient,
         pubKey,
@@ -240,6 +301,7 @@ export class SolanaSubmitter {
         vaultAuthority,
         recipientTokenAccount,
         tokenMint,
+        ruleTokenMint: new PublicKey(rule.tokenMint), 
         // Arcium PDA helpers — exact same pattern as hello-world test
         computationAccount: getComputationAccAddress(
           clusterOffset,
@@ -260,15 +322,15 @@ export class SolanaSubmitter {
   }
 
   private encodePublicInputs(proof: GeneratedProof): object {
-    const pi = proof.publicInputs;
+    const pi = proof.publicWitness;
     const pad = (hex: string, len: number) =>
       hex.replace("0x", "").padStart(len * 2, "0");
     return {
-      blockNumber: new BN(pi.blockNumber),
-      stateRoot: Array.from(Buffer.from(pad(pi.stateRoot, 32), "hex")),
-      walletAddress: Array.from(Buffer.from(pad(pi.walletAddress, 20), "hex")),
-      thresholdWei: Array.from(Buffer.from(pad(pi.thresholdWei, 32), "hex")),
-      ruleId: Array.from(Buffer.from(pad(pi.ruleId, 32), "hex")),
+      blockNumber: new BN(pi.block_number),
+      stateRoot: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
+      walletAddress: Array.from(Buffer.from(pad(pi.wallet_address, 20), "hex")),
+      thresholdWei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
+      ruleId: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
     };
   }
 }

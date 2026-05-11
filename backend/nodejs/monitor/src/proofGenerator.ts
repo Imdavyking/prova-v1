@@ -29,6 +29,13 @@ export interface GeneratedProof {
   witness: string;
   publicInputs: string;
   blockNumber?: number;
+  publicWitness: {
+    block_number: number;
+    state_root: string;
+    wallet_address: string;
+    threshold_wei: string;
+    rule_id: string;
+  };
 }
 
 export class ProofGenerator {
@@ -128,6 +135,13 @@ export class ProofGenerator {
 
     return {
       publicInputs,
+      publicWitness: {
+        block_number: input.block_number,
+        state_root: Buffer.from(input.state_root).toString("hex"),
+        wallet_address: Buffer.from(input.wallet_address).toString("hex"),
+        threshold_wei: Buffer.from(input.threshold_wei).toString("hex"),
+        rule_id: Buffer.from(input.rule_id).toString("hex"),
+      },
       proof,
       witness: Buffer.from(witness).toString("hex"),
       blockNumber: event.blockNumber,
