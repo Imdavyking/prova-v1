@@ -268,17 +268,15 @@ export class SolanaSubmitter {
       hex.replace("0x", "").padStart(len * 2, "0");
 
     const publicInputsArg = {
-      block_number: new BN(pi.block_number.toString()),
+      blockNumber: new BN(pi.block_number.toString()),
 
-      state_root: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
+      stateRoot: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
 
-      wallet_address: Array.from(
-        Buffer.from(pad(pi.wallet_address, 20), "hex"),
-      ),
+      walletAddress: Array.from(Buffer.from(pad(pi.wallet_address, 20), "hex")),
 
-      threshold_wei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
+      // thresholdWei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
 
-      rule_id: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
+      ruleId: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
     };
 
     const watchbuf = Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex");
@@ -299,53 +297,12 @@ export class SolanaSubmitter {
       this.executorProgram.programId,
     );
 
-    function buildPublicValues(pi: any): Buffer {
-      // Gnark public witness: field elements as 32-byte big-endian, concatenated
-      // Order must match the circuit's public input declaration order
-      const blockNumBuf = Buffer.alloc(32);
-      blockNumBuf.writeBigUInt64BE(BigInt(pi.block_number), 24); // u64 in last 8 bytes
-
-      return Buffer.concat([
-        blockNumBuf, // 32 bytes
-        Buffer.from(pad(pi.state_root, 32), "hex"), // 32 bytes
-        Buffer.from(pad(pi.wallet_address, 20).padStart(64, "0"), "hex"), // 32 bytes (padded to field size)
-        Buffer.from(pad(pi.threshold_wei, 32), "hex"), // 32 bytes
-        Buffer.from(pad(pi.rule_id, 32), "hex"), // 32 bytes
-      ]); // = 160 bytes total
-    }
-
-    const checks = {
-      state_root: Buffer.from(pad(pi.state_root, 32), "hex").length,
-      wallet_address: Buffer.from(pad(pi.wallet_address, 20), "hex").length,
-      threshold_wei: Buffer.from(pad(pi.threshold_wei, 32), "hex").length,
-      rule_id: Buffer.from(pad(pi.rule_id, 32), "hex").length,
-      watchAddress: watchbuf.length,
-      thresholdWei: thresholdBuf.length,
-      encryptedAmount: encryptedAmount.length,
-      encryptedRecipient: encryptedRecipient.length,
-      pubKey: pubKey.length,
-    };
-    console.log("Field sizes:", checks);
-
-    const proofBuf = Buffer.from(proof.proof.replace(/^0x/, ""), "hex");
-    const publicValuesBuf = Buffer.from(
-      proof.publicInputs.replace(/^0x/, ""),
-      "hex",
-    );
-
-    console.log("proof_bytes length:", proofBuf.length);
-    console.log("public_values length:", publicValuesBuf.length);
-    console.log(
-      "nonce bytes:",
-      nonce.toArrayLike(Buffer, "le", 16).length,
-      "value:",
-      nonce.toString(),
-    );
     return await this.executorProgram.methods
       .submitProofAndExecute(
-        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
+        Buffer.from('0x00'.replace(/^0x/, ""), "hex"),
+        Buffer.from('0x00'.replace(/^0x/, ""), "hex"),
 
-        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
+        // Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
 
         publicInputsArg,
 

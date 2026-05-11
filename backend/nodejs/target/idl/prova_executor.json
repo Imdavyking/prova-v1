@@ -139,7 +139,21 @@
         },
         {
           "name": "pending_execution",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112, 101, 110, 100, 105, 110, 103, 95, 101, 120, 101, 99
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "rule_id"
+              }
+            ]
+          }
         },
         {
           "name": "vault_token_account",
@@ -223,6 +237,10 @@
           "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
         },
         {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
@@ -245,11 +263,9 @@
           "type": "bytes"
         },
         {
-          "name": "public_inputs",
+          "name": "rule_id",
           "type": {
-            "defined": {
-              "name": "BalanceProofPublicInputs"
-            }
+            "array": ["u8", 32]
           }
         },
         {
@@ -416,42 +432,6 @@
         "fields": [
           {
             "array": ["u8", 64]
-          }
-        ]
-      }
-    },
-    {
-      "name": "BalanceProofPublicInputs",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "block_number",
-            "type": "u64"
-          },
-          {
-            "name": "state_root",
-            "type": {
-              "array": ["u8", 32]
-            }
-          },
-          {
-            "name": "wallet_address",
-            "type": {
-              "array": ["u8", 20]
-            }
-          },
-          {
-            "name": "threshold_wei",
-            "type": {
-              "array": ["u8", 32]
-            }
-          },
-          {
-            "name": "rule_id",
-            "type": {
-              "array": ["u8", 32]
-            }
           }
         ]
       }
