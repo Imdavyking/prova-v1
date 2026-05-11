@@ -1,6 +1,15 @@
 // monitor/src/solanaSubmitter.ts
 
-import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import BN from "bn.js"; // tests/prova.ts
 import {
@@ -21,7 +30,7 @@ import {
 import { randomBytes } from "crypto";
 import * as fs from "fs";
 import { logger } from "./logger";
-import { config } from "./config";
+import { ALT_ADDRESS, config } from "./config";
 import { GeneratedProof } from "./proofGenerator";
 import { ActiveRule } from "./ethWatcher";
 
@@ -189,8 +198,36 @@ export class SolanaSubmitter {
       encryptedAmount: Array.from(ciphertext[0]),
       encryptedRecipient: Array.from(ciphertext[1]),
       pubKey: Array.from(pubKey),
-      nonce: new BN(deserializeLE(nonceBuf).toString()),
+      nonce: new BN(nonceBuf.toString("hex"), 16),
     };
+  }
+
+  // Add to constructor or as a lazy-loaded field
+  private altAddress = new PublicKey(ALT_ADDRESS);
+
+  private async sendVersionedTx(ix: TransactionInstruction): Promise<string> {
+    const lookupTable = await this.connection
+      .getAddressLookupTable(this.altAddress)
+      .then((r) => r.value!);
+
+    const { blockhash } = await this.connection.getLatestBlockhash();
+    const msg = new TransactionMessage({
+      payerKey: this.monitorKeypair.publicKey,
+      recentBlockhash: blockhash,
+      instructions: [
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+        ix,
+      ],
+    }).compileToV0Message([lookupTable]);
+
+    const vtx = new VersionedTransaction(msg);
+    vtx.sign([this.monitorKeypair]);
+
+    return this.connection.sendTransaction(vtx, {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
   }
 
   private async submitProofTx(
@@ -231,11 +268,17 @@ export class SolanaSubmitter {
       hex.replace("0x", "").padStart(len * 2, "0");
 
     const publicInputsArg = {
-      blockNumber: Number(pi.block_number),
-      stateRoot: Buffer.from(pad(pi.state_root, 32), "hex"),
-      walletAddress: Buffer.from(pad(pi.wallet_address, 20), "hex"),
-      thresholdWei: Buffer.from(pad(pi.threshold_wei, 32), "hex"),
-      ruleId: Buffer.from(pad(pi.rule_id, 32), "hex"),
+      block_number: new BN(pi.block_number.toString()),
+
+      state_root: Array.from(Buffer.from(pad(pi.state_root, 32), "hex")),
+
+      wallet_address: Array.from(
+        Buffer.from(pad(pi.wallet_address, 20), "hex"),
+      ),
+
+      threshold_wei: Array.from(Buffer.from(pad(pi.threshold_wei, 32), "hex")),
+
+      rule_id: Array.from(Buffer.from(pad(pi.rule_id, 32), "hex")),
     };
 
     const watchbuf = Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex");
@@ -247,6 +290,57 @@ export class SolanaSubmitter {
     );
     console.log("thresholdWei length:", thresholdBuf.length);
 
+    console.log("encryptedAmount", encryptedAmount.length);
+    console.log("encryptedRecipient", encryptedRecipient.length);
+    console.log("pubKey", pubKey.length);
+
+    const [signPdaAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("ArciumSignerAccount")],
+      this.executorProgram.programId,
+    );
+
+    function buildPublicValues(pi: any): Buffer {
+      // Gnark public witness: field elements as 32-byte big-endian, concatenated
+      // Order must match the circuit's public input declaration order
+      const blockNumBuf = Buffer.alloc(32);
+      blockNumBuf.writeBigUInt64BE(BigInt(pi.block_number), 24); // u64 in last 8 bytes
+
+      return Buffer.concat([
+        blockNumBuf, // 32 bytes
+        Buffer.from(pad(pi.state_root, 32), "hex"), // 32 bytes
+        Buffer.from(pad(pi.wallet_address, 20).padStart(64, "0"), "hex"), // 32 bytes (padded to field size)
+        Buffer.from(pad(pi.threshold_wei, 32), "hex"), // 32 bytes
+        Buffer.from(pad(pi.rule_id, 32), "hex"), // 32 bytes
+      ]); // = 160 bytes total
+    }
+
+    const checks = {
+      state_root: Buffer.from(pad(pi.state_root, 32), "hex").length,
+      wallet_address: Buffer.from(pad(pi.wallet_address, 20), "hex").length,
+      threshold_wei: Buffer.from(pad(pi.threshold_wei, 32), "hex").length,
+      rule_id: Buffer.from(pad(pi.rule_id, 32), "hex").length,
+      watchAddress: watchbuf.length,
+      thresholdWei: thresholdBuf.length,
+      encryptedAmount: encryptedAmount.length,
+      encryptedRecipient: encryptedRecipient.length,
+      pubKey: pubKey.length,
+    };
+    console.log("Field sizes:", checks);
+
+    const proofBuf = Buffer.from(proof.proof.replace(/^0x/, ""), "hex");
+    const publicValuesBuf = Buffer.from(
+      proof.publicInputs.replace(/^0x/, ""),
+      "hex",
+    );
+
+    console.log("proof_bytes length:", proofBuf.length);
+    console.log("public_values length:", publicValuesBuf.length);
+    console.log(
+      "nonce bytes:",
+      nonce.toArrayLike(Buffer, "le", 16).length,
+      "value:",
+      nonce.toString(),
+    );
     return await this.executorProgram.methods
       .submitProofAndExecute(
         Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
@@ -265,16 +359,18 @@ export class SolanaSubmitter {
 
         new BN(rule.actionAmount.toString()),
 
-        new BN(computationOffset.toString()),
-
-        Buffer.from(encryptedAmount),
-
-        Buffer.from(encryptedRecipient),
-
-        Buffer.from(pubKey),
-
+        computationOffset,
+        encryptedAmount,
+        encryptedRecipient,
+        pubKey,
         nonce,
       )
+      .preInstructions([
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: 1,
+        }),
+      ])
       .accountsPartial({
         feePayer: this.monitorKeypair.publicKey,
         rule: rulePda,
@@ -282,9 +378,7 @@ export class SolanaSubmitter {
         vaultTokenAccount,
         vaultAuthority,
         recipientTokenAccount,
-        tokenMint,
         ruleTokenMint: new PublicKey(rule.tokenMint),
-
         computationAccount: getComputationAccAddress(
           clusterOffset,
           computationOffset,
@@ -297,9 +391,10 @@ export class SolanaSubmitter {
           this.executorProgram.programId,
           Buffer.from(getCompDefAccOffset("execute_transfer")).readUInt32LE(),
         ),
+        signPdaAccount,
         systemProgram: SystemProgram.programId,
       })
-      .signers([this.monitorKeypair])
-      .rpc({ commitment: "confirmed" });
+      .instruction() // <-- build the ix, don't send yet
+      .then((ix) => this.sendVersionedTx(ix));
   }
 }

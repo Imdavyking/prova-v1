@@ -37,3 +37,6 @@ export const config = {
   maxRetries: Number(process.env["MAX_RETRIES"] ?? 3),
   retryDelayMs: Number(process.env["RETRY_DELAY_MS"] ?? 5_000),
 } as const;
+
+
+export const ALT_ADDRESS = "J7bJub6FyFD2MKmv4n3EcZKVHu2yKHu8m9YrE5NHvqWH";
