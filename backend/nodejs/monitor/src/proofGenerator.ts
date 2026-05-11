@@ -11,6 +11,9 @@ import { promisify } from "util";
 import { logger } from "./logger";
 import { config } from "./config";
 import { TriggerEvent } from "./ethWatcher";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const execFileAsync = promisify(execFile);
 
@@ -30,11 +33,16 @@ export class ProofGenerator {
   private scriptBin: string;
 
   constructor() {
-    // Path to the compiled SP1 prover binary
-    this.scriptBin = path.resolve(
-      config.sp1ScriptPath,
-      "../../target/release/prova-prove",
-    );
+    this.scriptBin = config.sp1ScriptPath.startsWith("/")
+      ? path.join(config.sp1ScriptPath, "target/release/prova-prove")
+      : path.resolve(
+          __dirname, // monitor/src/
+          "../../../", // backend/
+          config.sp1ScriptPath,
+          "target/release/prova-prove",
+        );
+
+    logger.info("SP1 prover binary", { path: this.scriptBin });
   }
 
   async generate(event: TriggerEvent): Promise<GeneratedProof> {
