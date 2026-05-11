@@ -1,5 +1,5 @@
 {
-  "address": "8idYgi4XUAJVKp2XS25tjfp77LrFiDWmpMiaT8bzrotw",
+  "address": "7bFAYfTAJEAvjc4PaAxfVgyEu2o4Tda4hqzFX2vMHVeL",
   "metadata": {
     "name": "prova_registry",
     "version": "0.1.0",
@@ -8,16 +8,7 @@
   "instructions": [
     {
       "name": "cancel_rule",
-      "discriminator": [
-        152,
-        13,
-        102,
-        19,
-        188,
-        206,
-        187,
-        81
-      ],
+      "discriminator": [152, 13, 102, 19, 188, 206, 187, 81],
       "accounts": [
         {
           "name": "rule",
@@ -33,16 +24,7 @@
     },
     {
       "name": "initialize",
-      "discriminator": [
-        175,
-        175,
-        109,
-        31,
-        13,
-        152,
-        155,
-        237
-      ],
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
       "accounts": [
         {
           "name": "registry_state",
@@ -52,19 +34,7 @@
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  118,
-                  97,
-                  95,
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  114,
+                  112, 114, 111, 118, 97, 95, 114, 101, 103, 105, 115, 116, 114,
                   121
                 ]
               }
@@ -90,16 +60,7 @@
     },
     {
       "name": "mark_executed",
-      "discriminator": [
-        48,
-        99,
-        75,
-        230,
-        190,
-        61,
-        49,
-        134
-      ],
+      "discriminator": [48, 99, 75, 230, 190, 61, 49, 134],
       "accounts": [
         {
           "name": "rule",
@@ -118,26 +79,14 @@
         {
           "name": "tx_signature",
           "type": {
-            "array": [
-              "u8",
-              64
-            ]
+            "array": ["u8", 64]
           }
         }
       ]
     },
     {
       "name": "mark_proving",
-      "discriminator": [
-        107,
-        90,
-        119,
-        226,
-        207,
-        218,
-        42,
-        229
-      ],
+      "discriminator": [107, 90, 119, 226, 207, 218, 42, 229],
       "accounts": [
         {
           "name": "rule",
@@ -152,16 +101,7 @@
     },
     {
       "name": "mark_triggered",
-      "discriminator": [
-        230,
-        109,
-        66,
-        219,
-        19,
-        2,
-        182,
-        62
-      ],
+      "discriminator": [230, 109, 66, 219, 19, 2, 182, 62],
       "accounts": [
         {
           "name": "rule",
@@ -181,16 +121,7 @@
     },
     {
       "name": "register_rule",
-      "discriminator": [
-        255,
-        251,
-        98,
-        18,
-        227,
-        84,
-        208,
-        8
-      ],
+      "discriminator": [255, 251, 98, 18, 227, 84, 208, 8],
       "accounts": [
         {
           "name": "registry_state",
@@ -200,19 +131,7 @@
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  118,
-                  97,
-                  95,
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  114,
+                  112, 114, 111, 118, 97, 95, 114, 101, 103, 105, 115, 116, 114,
                   121
                 ]
               }
@@ -246,16 +165,7 @@
     },
     {
       "name": "set_paused",
-      "discriminator": [
-        91,
-        60,
-        125,
-        192,
-        176,
-        225,
-        166,
-        218
-      ],
+      "discriminator": [91, 60, 125, 192, 176, 225, 166, 218],
       "accounts": [
         {
           "name": "registry_state",
@@ -265,19 +175,7 @@
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  118,
-                  97,
-                  95,
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  114,
+                  112, 114, 111, 118, 97, 95, 114, 101, 103, 105, 115, 116, 114,
                   121
                 ]
               }
@@ -287,9 +185,7 @@
         {
           "name": "authority",
           "signer": true,
-          "relations": [
-            "registry_state"
-          ]
+          "relations": ["registry_state"]
         }
       ],
       "args": [
@@ -303,83 +199,29 @@
   "accounts": [
     {
       "name": "RegistryState",
-      "discriminator": [
-        29,
-        34,
-        224,
-        195,
-        175,
-        183,
-        99,
-        97
-      ]
+      "discriminator": [29, 34, 224, 195, 175, 183, 99, 97]
     },
     {
       "name": "Rule",
-      "discriminator": [
-        82,
-        10,
-        53,
-        40,
-        250,
-        61,
-        143,
-        130
-      ]
+      "discriminator": [82, 10, 53, 40, 250, 61, 143, 130]
     }
   ],
   "events": [
     {
       "name": "RuleCancelled",
-      "discriminator": [
-        206,
-        255,
-        117,
-        230,
-        11,
-        20,
-        151,
-        74
-      ]
+      "discriminator": [206, 255, 117, 230, 11, 20, 151, 74]
     },
     {
       "name": "RuleExecuted",
-      "discriminator": [
-        19,
-        126,
-        250,
-        217,
-        172,
-        72,
-        222,
-        63
-      ]
+      "discriminator": [19, 126, 250, 217, 172, 72, 222, 63]
     },
     {
       "name": "RuleRegistered",
-      "discriminator": [
-        15,
-        244,
-        90,
-        148,
-        192,
-        193,
-        171,
-        32
-      ]
+      "discriminator": [15, 244, 90, 148, 192, 193, 171, 32]
     },
     {
       "name": "RuleTriggered",
-      "discriminator": [
-        41,
-        228,
-        95,
-        255,
-        30,
-        69,
-        117,
-        65
-      ]
+      "discriminator": [41, 228, 95, 255, 30, 69, 117, 65]
     }
   ],
   "errors": [
@@ -472,10 +314,7 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -497,28 +336,19 @@
           {
             "name": "watch_address",
             "type": {
-              "array": [
-                "u8",
-                20
-              ]
+              "array": ["u8", 20]
             }
           },
           {
             "name": "token_address",
             "type": {
-              "array": [
-                "u8",
-                20
-              ]
+              "array": ["u8", 20]
             }
           },
           {
             "name": "threshold_wei",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -592,10 +422,7 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -617,28 +444,19 @@
           {
             "name": "watch_address",
             "type": {
-              "array": [
-                "u8",
-                20
-              ]
+              "array": ["u8", 20]
             }
           },
           {
             "name": "token_address",
             "type": {
-              "array": [
-                "u8",
-                20
-              ]
+              "array": ["u8", 20]
             }
           },
           {
             "name": "threshold_wei",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -696,10 +514,7 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -717,19 +532,13 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
             "name": "tx_signature",
             "type": {
-              "array": [
-                "u8",
-                64
-              ]
+              "array": ["u8", 64]
             }
           },
           {
@@ -747,10 +556,7 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -776,19 +582,13 @@
           {
             "name": "watch_address",
             "type": {
-              "array": [
-                "u8",
-                20
-              ]
+              "array": ["u8", 20]
             }
           },
           {
             "name": "threshold_wei",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {
@@ -845,10 +645,7 @@
           {
             "name": "rule_id",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "array": ["u8", 32]
             }
           },
           {

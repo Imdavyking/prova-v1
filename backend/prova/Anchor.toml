@@ -7,7 +7,7 @@ skip-lint = false
 
 [programs.devnet]
 prova_executor = "9cgBVGFfx2XmMhD9L9U7b6xfgSe4MageWcWnn4NUi9dL"
-prova_registry = "8idYgi4XUAJVKp2XS25tjfp77LrFiDWmpMiaT8bzrotw"
+prova_registry = "7bFAYfTAJEAvjc4PaAxfVgyEu2o4Tda4hqzFX2vMHVeL"
 
 [registry]
 url = "https://api.apr.dev"

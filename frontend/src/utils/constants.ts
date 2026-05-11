@@ -4,7 +4,7 @@
 
 export const REGISTRY_PROGRAM_ID =
   (import.meta as any).env.VITE_REGISTRY_PROGRAM_ID ??
-  "8idYgi4XUAJVKp2XS25tjfp77LrFiDWmpMiaT8bzrotw";
+  "7bFAYfTAJEAvjc4PaAxfVgyEu2o4Tda4hqzFX2vMHVeL";
 
 export const EXECUTOR_PROGRAM_ID =
   (import.meta as any).env.VITE_EXECUTOR_PROGRAM_ID ??
