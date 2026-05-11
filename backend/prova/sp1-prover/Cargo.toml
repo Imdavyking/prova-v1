@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 sp1-sdk  = { version = "=6.1.0" }
-sp1-zkvm = { version = "=6.1.0", features = ["bump"] }
+sp1-zkvm = { version = "6.1.0", features = ["bump", "embedded"] }   # ← Add "embedded"
 alloy-primitives = { version = "1.5" }
 serde            = { version = "1.0", features = ["derive"] }
 serde_json       = "1.0"
