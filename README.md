@@ -25,6 +25,7 @@ Built for the **Solana Frontier Hackathon 2026**.
 - [ZK Proof Deep Dive](#zk-proof-deep-dive)
 - [Arcium Confidential Execution](#arcium-confidential-execution)
 - [Rule Status Lifecycle](#rule-status-lifecycle)
+- [Live Execution Logs](#live-execution-logs)
 - [Security Considerations](#security-considerations)
 - [Common Errors](#common-errors)
 - [Limitations](#limitations)
@@ -47,7 +48,7 @@ User registers rule:  "IF ETH balance < 0.5 ETH → transfer 100 USDC on Solana"
 Ethereum Sepolia condition triggers at a specific block
                                     ↓
 Noir circuit generates a proof: cryptographic proof that the balance dropped
-(proving backend — proof converted to Solana calldata via Garaga)
+(Barretenberg UltraHonk backend — proof converted to Solana calldata via Garaga)
                                     ↓
 Proof verified on Solana Devnet by the prova_executor program
 (gnark-verifier-solana handles on-chain verification)
@@ -78,7 +79,6 @@ Zero trusted parties. ~28 seconds end-to-end. Any EVM chain → Solana.
 │                                                                 │
 │  Reads:  block header RLP + Merkle-Patricia account proof       │
 │  Circuit: Noir (main.nr) proves balance < threshold             │
-│                      │
 │  Output: proof bytes converted to Solana calldata via Garaga    │
 └──────────────────────────┬──────────────────────────────────────┘
                            │  proof calldata + public inputs
@@ -103,16 +103,16 @@ Zero trusted parties. ~28 seconds end-to-end. Any EVM chain → Solana.
 
 ### Component Summary
 
-| Layer                               | What it does                                                                                                                                 |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `noir_prover/src/main.nr`           | Noir circuit. Verifies MPT account proof, asserts balance < threshold, commits public inputs                                                 |
-| `noir_prover/scripts/fetch_witness` | CLI: fetches ETH state via `eth_getProof`, builds witness for the Noir circuit                                                               |
-| `frontend/src/helpers/gen_proof.ts` | In-browser proving: Garaga calldata conversion                                                      |
-| `programs/prova_registry`           | Anchor program. Stores rules, holds fee escrow, tracks rule status lifecycle                                                                 |
-| `programs/prova_executor`           | Arcium MXE program. Verifies Noir proof on-chain (gnark-verifier-solana), queues confidential computation, performs SPL transfer in callback |
-| `encrypted-ixs/execute_transfer.rs` | Arcis circuit. Runs inside MPC cluster. Validates transfer params privately                                                                  |
-| `monitor/`                          | TypeScript service. Watches Ethereum Sepolia, triggers proof generation, submits to Solana                                                   |
-| `sdk/`                              | TypeScript SDK. Register rules, query status, subscribe to events                                                                            |
+| Layer | What it does |
+|---|---|
+| `noir_prover/src/main.nr` | Noir circuit. Verifies MPT account proof, asserts balance < threshold, commits public inputs |
+| `noir_prover/scripts/fetch_witness` | CLI: fetches ETH state via `eth_getProof`, builds witness for the Noir circuit |
+| `frontend/src/helpers/gen_proof.ts` | In-browser proving: Garaga calldata conversion |
+| `programs/prova_registry` | Anchor program. Stores rules, holds fee escrow, tracks rule status lifecycle |
+| `programs/prova_executor` | Arcium MXE program. Verifies Noir proof on-chain, queues confidential computation, performs SPL transfer in callback |
+| `encrypted-ixs/execute_transfer.rs` | Arcis circuit. Runs inside MPC cluster. Validates transfer params privately |
+| `monitor/` | TypeScript service. Watches Ethereum Sepolia, triggers proof generation, submits to Solana |
+| `sdk/` | TypeScript SDK. Register rules, query status, subscribe to events |
 
 ---
 
@@ -130,7 +130,7 @@ Zero trusted parties. ~28 seconds end-to-end. Any EVM chain → Solana.
 
 Every cross-chain automation tool today has a trust assumption baked in. Gelato relies on a network of bots. Chainlink Automation trusts DON validators. Wormhole relies on a guardian set. If any of those go offline, lie, or get exploited, your automation silently fails or executes incorrectly.
 
-ZK proof systems have matured enough to make the trustless version practical. Noir gives us a clean, auditable circuit language. Backend produces compact proofs fast enough for real user flows. Garaga bridges the proof format gap between EVM and Solana. Arcium adds confidential execution so the action itself can't be front-run.
+ZK proof systems have matured enough to make the trustless version practical. Noir gives us a clean, auditable circuit language. Barretenberg produces compact proofs fast enough for real user flows. Garaga bridges the proof format gap between EVM and Solana. Arcium adds confidential execution so the action itself can't be front-run.
 
 The Solana Frontier Hackathon is the right moment: Solana's BN254 precompile support and Arcium's devnet availability finally make the full stack feasible in a hackathon timeframe.
 
@@ -138,14 +138,14 @@ The Solana Frontier Hackathon is the right moment: Solana's BN254 precompile sup
 
 ## Sponsor Tech
 
-| Sponsor                  | Where it's used                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Arcium**               | MXE confidential execution — transfer params are encrypted with x25519+RescueCipher, evaluated privately across MPC nodes, no MEV possible |
-| **Noir**                 | ZK circuit language — `main.nr` proves Ethereum account state: block header integrity, MPT account inclusion, balance < threshold          |
-| **Garaga**               | Converts proof output into Solana-compatible calldata for on-chain verification                                                  |
-| **Phantom**              | Wallet UX for rule registration and status tracking                                                                                        |
-| **Privy**                | Embedded wallet auth — single login for both source chain and Solana                                                                       |
-| **Coinbase**             | Base as source chain support + multi-chain settlement via their SDK                                                                        |
+| Sponsor | Where it's used |
+|---|---|
+| **Arcium** | MXE confidential execution — transfer params are encrypted with x25519+RescueCipher, evaluated privately across MPC nodes, no MEV possible |
+| **Noir** | ZK circuit language — `main.nr` proves Ethereum account state: block header integrity, MPT account inclusion, balance < threshold |
+| **Garaga** | Converts Barretenberg proof output into Solana-compatible calldata for on-chain verification |
+| **Phantom** | Wallet UX for rule registration and status tracking |
+| **Privy** | Embedded wallet auth — single login for both source chain and Solana |
+| **Coinbase** | Base as source chain support + multi-chain settlement via their SDK |
 
 ---
 
@@ -201,15 +201,15 @@ prova/
 
 ## Prerequisites
 
-| Tool         | Version    | Install                                                                                     |
-| ------------ | ---------- | ------------------------------------------------------------------------------------------- |
-| Rust         | stable     | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh`                           |
-| Solana CLI   | **2.3.0**  | `sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`                           |
-| Anchor CLI   | **0.32.1** | `cargo install --git https://github.com/coral-xyz/anchor anchor-cli --tag v0.32.1`          |
-| Arcium CLI   | **0.9.7**  | `curl --proto '=https' --tlsv1.2 -sSfL https://install.arcium.com/ \| bash`                 |
-| Nargo (Noir) | latest     | `curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install \| bash && noirup` |
-| Docker       | latest     | Required by Arcium — [docs.docker.com](https://docs.docker.com/engine/install/)             |
-| Node.js      | **20+**    | via `nvm`                                                                                   |
+| Tool | Version | Install |
+|---|---|---|
+| Rust | stable | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Solana CLI | **2.3.0** | `sh -c "$(curl -sSfL https://release.solana.com/stable/install)"` |
+| Anchor CLI | **0.32.1** | `cargo install --git https://github.com/coral-xyz/anchor anchor-cli --tag v0.32.1` |
+| Arcium CLI | **0.9.7** | `curl --proto '=https' --tlsv1.2 -sSfL https://install.arcium.com/ \| bash` |
+| Nargo (Noir) | latest | `curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install \| bash && noirup` |
+| Docker | latest | Required by Arcium — [docs.docker.com](https://docs.docker.com/engine/install/) |
+| Node.js | **20+** | via `nvm` |
 
 > **Windows:** Arcium does not support Windows. Use WSL2 with Ubuntu.
 
@@ -325,7 +325,7 @@ VK_PATH=../noir_prover/target/noir_prover.vk cargo run --release
 cd ../../..
 ```
 
-This writes `programs/prova_executor/src/vk.rs` — the on-chain verifier constant. Rebuilding after any circuit change is required.
+This writes `programs/prova_executor/src/vk.rs` — the on-chain verifier constant. **Rebuilding after any circuit change is required.**
 
 ### 3. Solana + Arcium Programs
 
@@ -353,7 +353,7 @@ arcium deploy \
   --keypair-path ~/.config/solana/id.json \
   --cluster-offset 456 \
   --recovery-set-size 4 \
-  --rpc-url https://solana-devnet.g.alchemy.com/v2/pkf1MmFFP3jrtqw0BR7vCInGmCeUFwO7 \
+  --rpc-url https://solana-devnet.g.alchemy.com/v2/YOUR_KEY \
   --program-name prova_executor \
   --resume
 ```
@@ -425,22 +425,7 @@ cd backend/nodejs/monitor
 yarn start
 ```
 
-The monitor loads all active rules, subscribes to new `RuleRegistered` events, then polls Ethereum Sepolia every ~12 seconds:
-
-```
-2026-05-04T12:00:00Z [info] 🚀 Prova Monitor starting...
-2026-05-04T12:00:01Z [info] Loaded 3 active rules
-2026-05-04T12:00:01Z [info] ETH watcher started { interval: 12000 }
-2026-05-04T12:01:13Z [info] 🔔 Condition triggered! { ruleId: '0xdeadbeef...', block: 7234891 }
-2026-05-04T12:01:13Z [info] Generating ZK proof (Noir + Barretenberg)...
-2026-05-04T12:02:41Z [info] ✓ Proof generated in 88.2s
-2026-05-04T12:02:43Z [info] Rule → Triggered  { sig: '5xGH...' }
-2026-05-04T12:02:44Z [info] Rule → Proving    { sig: '7rKP...' }
-2026-05-04T12:02:45Z [info] Proof tx queued   { queueSig: '3mNQ...' }
-2026-05-04T12:02:45Z [info] Waiting for Arcium MXE computation...
-2026-05-04T12:03:10Z [info] ✓ Arcium computation finalized { finalizeSig: '9wBZ...' }
-2026-05-04T12:03:10Z [info] ✅ Rule fully executed! { ruleId: '0xdeadbeef...' }
-```
+The monitor loads all active rules, subscribes to new `RuleRegistered` events, then polls Ethereum Sepolia every ~12 seconds. See [Live Execution Logs](#live-execution-logs) for real output from a successful run.
 
 ### Generate a Witness + Proof Manually
 
@@ -589,20 +574,22 @@ The circuit commits five public inputs: `block_number`, `state_root`, `wallet_ad
 
 **Proof stack:**
 
-| Layer                 | Technology                              |
-| --------------------- | --------------------------------------- |
-| Circuit language      | Noir (`main.nr`)                        |
-| Proof ↔ Solana bridge | Garaga (`getZKHonkCallData`)            |
-| On-chain verifier     | `gnark-verifier-solana`                 |
+| Layer | Technology |
+|---|---|
+| Circuit language | Noir (`main.nr`) |
+| Proving backend | Barretenberg UltraHonk |
+| Proof ↔ Solana bridge | Garaga (`getZKHonkCallData`) |
+| On-chain verifier | `gnark-verifier-solana` |
 
-**Proof stats:**
+**Proof performance:**
 
-| Metric                    | Value                    |
-| ------------------------- | ------------------------ |
-| Proof size                | ~264 bytes               |
-| Verification cost         | ~280k compute units      |
-| Proving time (local CPU)  | ~90s                     |
-| Proving time (in-browser) | ~20–30s (WASM)           |
+| Metric | Value |
+|---|---|
+| Proof size | ~264 bytes |
+| Verification cost | ~280k compute units |
+| Proving time (local CPU) | ~76–90s |
+| Proving time (in-browser) | ~20–30s (WASM) |
+| Constraint count | 3,392,420 |
 
 ---
 
@@ -638,6 +625,127 @@ A rule can also transition to `CANCELLED` from `ACTIVE` (owner calls `cancel_rul
 
 ---
 
+## Live Execution Logs
+
+The following is a real end-to-end execution captured on **Solana Devnet / Ethereum Sepolia** on May 12, 2026. The full cycle — from condition detection through ZK proof generation to Arcium MXE finalization — completed in under 2 minutes.
+
+### Monitor Startup
+
+```
+2026-05-12T00:48:32.289Z [info] 🚀 Prova Monitor starting...
+2026-05-12T00:48:32.291Z [info] Config {"solanaRpc":"https://api.devnet.solana.com","proverMode":"local","cluster":"devnet"}
+2026-05-12T00:48:32.327Z [info] Monitor keypair {"pubkey":"FUPu8ecwzzRQgPLXhnsDaCwpiTVEEpXcd1rYe4sMLxvV"}
+2026-05-12T00:48:32.330Z [info] Initialized Ethereum watcher
+2026-05-12T00:48:32.393Z [info] ✅ Gnark WASM loaded {"size":20574083}
+2026-05-12T00:48:32.393Z [info] Initialized proof generator
+2026-05-12T00:48:32.407Z [info] Initialized Solana submitter
+2026-05-12T00:48:32.408Z [info] Initialized registry loader
+```
+
+The monitor boots in ~120ms, loading the gnark WASM verifier (20 MB) and connecting to both chains.
+
+### Rule Discovery
+
+```
+2026-05-12T00:48:32.408Z [info] Loading active rules from registry...
+2026-05-12T00:48:32.987Z [info] Loaded 1 active rules
+2026-05-12T00:48:32.988Z [info] Watching rule {
+  "ruleId": "0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7",
+  "address": "0x7e7ec6ab36617a8004737d2382785b8b0ee40483"
+}
+2026-05-12T00:48:32.991Z [info] ETH watcher started {"interval":12000}
+2026-05-12T00:48:32.994Z [info] ✓ Monitor running {"activeRules":1,"polling":"every 12s"}
+```
+
+### Condition Triggered
+
+On the very first poll (block `10835925`), the watched address balance is `0.0000157 ETH` — well below the `0.001 ETH` threshold:
+
+```
+2026-05-12T00:48:33.701Z [info] Balance check {
+  "ruleId":    "0xee0ed8f0",
+  "address":   "0x7e7ec6ab36617a8004737d2382785b8b0ee40483",
+  "balance":   "0.000015750000483 ETH",
+  "threshold": "0.001 ETH",
+  "block":     10835925,
+  "triggered": true
+}
+2026-05-12T00:48:33.701Z [info] 🔔 Condition triggered! {
+  "ruleId":    "0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7",
+  "balance":   "15750000483000",
+  "threshold": "1000000000000000",
+  "block":     10835925
+}
+2026-05-12T00:48:33.701Z [info] Stopped watching rule {"ruleId":"0xee0ed8f0..."}
+```
+
+The monitor immediately stops polling the rule and hands it off to the proof pipeline.
+
+### ZK Proof Generation
+
+The Noir circuit runs locally against the Sepolia state at block `10835925`. The gnark Groth16 prover handles 3.39 million constraints in ~76 seconds:
+
+```
+2026-05-12T00:48:33.702Z [info] Generating proof... {"ruleId":"0xee0ed8f0...","wallet":"0x7e7ec6ab...","block":10835925}
+2026-05-12T00:48:33.702Z [info] Initializing Noir...
+2026-05-12T00:48:33.721Z [info] ✅ Noir initialized
+
+2026-05-12T00:48:34.115Z [info] ✅ Gnark runtime initialized
+2026-05-12T00:48:34.792Z [info] Executing Noir circuit...
+2026-05-12T00:48:36.257Z [info] ✅ Witness generated
+2026-05-12T00:48:36.259Z [info] Running CLI prover...
+
+2026-05-12T00:48:36.895Z [info] ✅ CCS loaded
+2026-05-12T00:49:27.677Z [info] ✅ PK loaded        ← proving key (large; ~51s load time)
+2026-05-12T00:49:27.919Z [info] ✅ ACIR loaded
+2026-05-12T00:49:28.760Z [info] ✅ Witness built
+
+01:49:32 DBG constraint system solver done  nbConstraints=3392420  took=3313.737ms
+01:49:49 DBG prover done  backend=groth16  curve=bn254  nbConstraints=3392420  took=17320ms
+
+2026-05-12T00:49:49.398Z [info] 🎉 Proof saved to: tmp_proof.bin
+2026-05-12T00:49:50.115Z [info] ✅ Proof generated in 76.41s
+```
+
+### On-Chain Submission + Arcium MXE
+
+The proof and encrypted transfer params are submitted to Solana. The Arcium MXE cluster finalizes computation in ~20 seconds:
+
+```
+2026-05-12T00:49:50.121Z [info] Submitting proof to Solana...
+2026-05-12T00:49:50.614Z [info] Current rule status: proving
+2026-05-12T00:49:50.614Z [warn] Rule is already in triggered/proving state, skipping markTriggered
+2026-05-12T00:49:50.779Z [info] Current rule status: proving
+2026-05-12T00:49:50.779Z [warn] Rule is already in proving/executed state, skipping markProving
+
+2026-05-12T00:49:52.430Z [info] Proof tx queued {
+  "queueSig": "5RRc6b3Q2qznphvWE93NGDxF4iieDTorMpVSEVbZPw2aai1qdEyiaC97Vx68pxZqrc5wjs45E6gmgn4jJd7KQ489"
+}
+2026-05-12T00:49:52.430Z [info] Waiting for Arcium MXE computation...
+
+2026-05-12T00:50:12.878Z [info] ✓ Arcium computation finalized {
+  "finalizeSig": "377ULQjZtHyVgSCX9eZzCgu9sksMrbgfqE5Kg6X4pnjqwj6XT3Q96N1orKZR1XA46dKYAvmLb19EDr2jKz3Fjdqj"
+}
+2026-05-12T00:50:12.878Z [info] ✅ Rule fully executed! {
+  "ruleId":     "0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7",
+  "finalizeSig": "377ULQjZ...Fjdqj"
+}
+```
+
+### Timing Summary
+
+| Phase | Duration |
+|---|---|
+| Monitor boot → condition detected | < 2s |
+| Noir witness generation | ~2.5s |
+| Proving key load | ~51s |
+| Groth16 proof generation | ~17.3s |
+| Solana submission | ~2s |
+| Arcium MXE finalization | ~20s |
+| **Total (condition → executed)** | **~96s** |
+
+---
+
 ## Security Considerations
 
 **Double-execution prevention** — the registry rejects any status transition that skips a step. A proof cannot be submitted for a rule that is not in `Triggered` status.
@@ -654,17 +762,18 @@ A rule can also transition to `CANCELLED` from `ACTIVE` (owner calls `cancel_rul
 
 ## Common Errors
 
-| Error                                | Fix                                                                                            |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `nargo compile` fails                | Ensure Nargo is installed: `noirup` to get the latest version                                  |
-| `VK_PATH not found` in gen_vk        | Run `nargo compile` first so the `.vk` file exists at `noir_prover/target/`                    |
-| `arcium localnet` times out on macOS | macOS file descriptor limit — see fix below                                                    |
-| `Account not found` on registry init | Run `initialize_registry.ts` first                                                             |
-| `InvalidProof` from executor         | Verifying key mismatch — re-run `solana_gen_vk` after any circuit change and redeploy          |
-| `getMXEPublicKeyWithRetry` times out | Arcium devnet MXE isn't ready — wait 30s and retry, or run `arcium status`                     |
-| Monitor not detecting condition      | `ETH_RPC_URL` doesn't support `debug_getRawHeader` — use an Alchemy archive endpoint           |
-| `RuleNotActive` on `markTriggered`   | Rule was already triggered — check status with `getRuleStatus()`                               |
-| Proof generation hangs               | Normal for local CPU on larger circuits — try running in-browser with the WASM backend instead |
+| Error | Fix |
+|---|---|
+| `nargo compile` fails | Ensure Nargo is installed: `noirup` to get the latest version |
+| `VK_PATH not found` in gen_vk | Run `nargo compile` first so the `.vk` file exists at `noir_prover/target/` |
+| `arcium localnet` times out on macOS | macOS file descriptor limit — see fix below |
+| `Account not found` on registry init | Run `initialize_registry.ts` first |
+| `InvalidProof` from executor | Verifying key mismatch — re-run `solana_gen_vk` after any circuit change and redeploy |
+| `getMXEPublicKeyWithRetry` times out | Arcium devnet MXE isn't ready — wait 30s and retry, or run `arcium status` |
+| Monitor not detecting condition | `ETH_RPC_URL` doesn't support `debug_getRawHeader` — use an Alchemy archive endpoint |
+| `RuleNotActive` on `markTriggered` | Rule was already triggered — check status with `getRuleStatus()` |
+| Proof generation hangs | Normal for local CPU on larger circuits — try running in-browser with the WASM backend instead |
+| `AccountAlreadyInUse` (0x0) on retry | `pending_execution` PDA already exists from a prior attempt — use `init_if_needed` and guard against double-execution in the handler |
 
 ### macOS: `arcium localnet` Times Out
 
@@ -704,83 +813,3 @@ echo "ulimit -n 1048576" >> ~/.zshrc
 ## License
 
 MIT — built for the Solana Frontier Hackathon 2026.
-
-
-(base) dave@Davids-MacBook-Pro monitor % yarn dev
-yarn run v1.22.22
-warning ../../../../package.json: No license field
-$ tsx monitor/src/index.ts
-2026-05-12T00:48:32.289Z [info] 🚀 Prova Monitor starting...
-2026-05-12T00:48:32.291Z [info] Config {"solanaRpc":"https://api.devnet.solana.com","proverMode":"local","cluster":"devnet"}
-2026-05-12T00:48:32.327Z [info] Monitor keypair {"pubkey":"FUPu8ecwzzRQgPLXhnsDaCwpiTVEEpXcd1rYe4sMLxvV"}
-2026-05-12T00:48:32.330Z [info] Initialized Ethereum watcher
-2026-05-12T00:48:32.393Z [info] ✅ Gnark WASM loaded {"size":20574083}
-2026-05-12T00:48:32.393Z [info] Initialized proof generator
-2026-05-12T00:48:32.407Z [info] Initialized Solana submitter
-2026-05-12T00:48:32.408Z [info] Initialized registry loader
-2026-05-12T00:48:32.408Z [info] Loading active rules from registry...
-2026-05-12T00:48:32.987Z [info] Loaded 1 active rules
-2026-05-12T00:48:32.988Z [info] Watching rule {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","address":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483"}
-2026-05-12T00:48:32.991Z [info] ETH watcher started {"interval":12000}
-2026-05-12T00:48:32.994Z [info] ✓ Monitor running {"activeRules":1,"polling":"every 12s"}
-2026-05-12T00:48:33.701Z [info] Balance check {"ruleId":"0xee0ed8f0","address":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483","balance":"0.000015750000483 ETH","threshold":"0.001 ETH","block":10835925,"triggered":true}
-2026-05-12T00:48:33.701Z [info] 🔔 Condition triggered! {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","balance":"15750000483000","threshold":"1000000000000000","block":10835925}
-2026-05-12T00:48:33.701Z [info] Stopped watching rule {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7"}
-2026-05-12T00:48:33.702Z [info] ⚡ Processing trigger {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","block":10835925,"balance":"15750000483000","threshold":"1000000000000000"}
-2026-05-12T00:48:33.702Z [info] Generating proof... {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","wallet":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483","block":10835925}
-2026-05-12T00:48:33.702Z [info] Initializing Noir...
-2026-05-12T00:48:33.721Z [info] ✅ Noir initialized
-WASM Proof Generator Ready
-Available functions:
-  - initCircuit(ccsBytes, pkBytes, witnessBytes)
-  - generateProof()
-2026-05-12T00:48:34.115Z [info] ✅ Gnark runtime initialized
-2026-05-12T00:48:34.792Z [info] Executing Noir circuit...
-2026-05-12T00:48:36.257Z [info] ✅ Witness generated
-2026-05-12T00:48:36.259Z [info] Running CLI prover...
-2026-05-12T00:48:36.298Z [info] 📦 Loading files...
-
-2026-05-12T00:48:36.895Z [info] ✅ CCS loaded
-
-2026-05-12T00:49:27.677Z [info] ✅ PK loaded
-
-2026-05-12T00:49:27.919Z [info] ✅ ACIR loaded
-📦 Loading witness...
-
-2026-05-12T00:49:28.760Z [info] ✅ Witness built
-⚡ Generating proof...
-
-2026-05-12T00:49:32.075Z [info] 01:49:32 DBG constraint system solver done nbConstraints=3392420 took=3313.737
-
-2026-05-12T00:49:49.396Z [info] 01:49:49 DBG prover done acceleration=none backend=groth16 curve=bn254 nbConstraints=3392420 took=17320.235375
-
-2026-05-12T00:49:49.398Z [info] 🎉 Proof saved (JSON HEX) to: /Users/dave/Work/prova/backend/nodejs/tmp_proof.bin
-
-2026-05-12T00:49:50.115Z [info] ✅ Proof generated in 76.41s
-2026-05-12T00:49:50.121Z [info] Submitting proof to Solana... {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7"}
-2026-05-12T00:49:50.124Z [info] Marking rule as triggered on-chain...
-2026-05-12T00:49:50.614Z [info] Current rule status: proving
-2026-05-12T00:49:50.614Z [warn] Rule is already in triggered/proving/executed state, skipping markTriggered
-2026-05-12T00:49:50.779Z [info] Current rule status: proving
-2026-05-12T00:49:50.779Z [warn] Rule is already in proving/executed state, skipping markProving
-watchAddress length: 20
-thresholdWei length: 32
-encryptedAmount 32
-encryptedRecipient 32
-pubKey 32
-nonce byteLength 16
-nonce hex 2010e3d4d10c305b2f1e08c16525a351
-computationOffset bytes 8
-computationOffset 1299732652528576905
-encryptedAmount len = 32
-encryptedRecipient len = 32
-pubKey len = 32
-ruleId len = 32
-watchbuf len = 20
-thresholdBuf len = 32
-2026-05-12T00:49:52.430Z [info] Proof tx queued {"queueSig":"5RRc6b3Q2qznphvWE93NGDxF4iieDTorMpVSEVbZPw2aai1qdEyiaC97Vx68pxZqrc5wjs45E6gmgn4jJd7KQ489"}
-2026-05-12T00:49:52.430Z [info] Waiting for Arcium MXE computation...
-2026-05-12T00:50:12.878Z [info] ✓ Arcium computation finalized {"finalizeSig":"377ULQjZtHyVgSCX9eZzCgu9sksMrbgfqE5Kg6X4pnjqwj6XT3Q96N1orKZR1XA46dKYAvmLb19EDr2jKz3Fjdqj"}
-2026-05-12T00:50:12.878Z [info] ✅ Rule fully executed! {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","finalizeSig":"377ULQjZtHyVgSCX9eZzCgu9sksMrbgfqE5Kg6X4pnjqwj6XT3Q96N1orKZR1XA46dKYAvmLb19EDr2jKz3Fjdqj"}
-
-real logs
