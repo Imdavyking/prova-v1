@@ -204,34 +204,6 @@ export class SolanaSubmitter {
     };
   }
 
-  // Add to constructor or as a lazy-loaded field
-  private altAddress = new PublicKey(ALT_ADDRESS);
-
-  private async sendVersionedTx(ix: TransactionInstruction): Promise<string> {
-    const lookupTable = await this.connection
-      .getAddressLookupTable(this.altAddress)
-      .then((r) => r.value!);
-
-    const { blockhash } = await this.connection.getLatestBlockhash();
-    const msg = new TransactionMessage({
-      payerKey: this.monitorKeypair.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
-        ix,
-      ],
-    }).compileToV0Message([lookupTable]);
-
-    const vtx = new VersionedTransaction(msg);
-    vtx.sign([this.monitorKeypair]);
-
-    return this.connection.sendTransaction(vtx, {
-      skipPreflight: false,
-      maxRetries: 3,
-    });
-  }
-
   private async submitProofTx(
     rule: ActiveRule,
     rulePda: PublicKey,
@@ -287,14 +259,52 @@ export class SolanaSubmitter {
       this.executorProgram.programId,
     );
 
+    console.log("nonce byteLength", nonce.toArrayLike(Buffer, "le").length);
+
+    console.log("nonce hex", nonce.toString(16));
+
+    console.log(
+      "computationOffset bytes",
+      computationOffset.toArrayLike(Buffer, "le").length,
+    );
+
+    console.log("computationOffset", computationOffset.toString());
+
+    const checkU8Array = (name: string, arr: number[], expected: number) => {
+      console.log(name, "len =", arr.length);
+
+      const bad = arr.find(
+        (v) =>
+          typeof v !== "number" || v < 0 || v > 255 || !Number.isInteger(v),
+      );
+
+      if (bad !== undefined) {
+        console.error(name, "BAD VALUE:", bad);
+      }
+
+      if (arr.length !== expected) {
+        console.error(name, "BAD LENGTH");
+      }
+    };
+
+    checkU8Array("encryptedAmount", encryptedAmount, 32);
+    checkU8Array("encryptedRecipient", encryptedRecipient, 32);
+    checkU8Array("pubKey", pubKey, 32);
+    checkU8Array("ruleId", Array.from(ruleIdBytes), 32);
+    checkU8Array("watchbuf", Array.from(watchbuf), 20);
+    checkU8Array("thresholdBuf", Array.from(thresholdBuf), 32);
+
     return await this.executorProgram.methods
       .submitProofAndExecute(
         Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
-        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
-        Array.from(ruleIdBytes),
-        Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
 
-        thresholdBuf,
+        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
+
+        Array.from(ruleIdBytes),
+
+        Array.from(watchbuf),
+
+        Array.from(thresholdBuf),
 
         new PublicKey(rule.recipient),
 
@@ -303,9 +313,13 @@ export class SolanaSubmitter {
         new BN(rule.actionAmount.toString()),
 
         computationOffset,
-        encryptedAmount,
-        encryptedRecipient,
-        pubKey,
+
+        Array.from(encryptedAmount),
+
+        Array.from(encryptedRecipient),
+
+        Array.from(pubKey),
+
         nonce,
       )
       .preInstructions([
