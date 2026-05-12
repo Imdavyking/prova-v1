@@ -38,6 +38,10 @@ import { ActiveRule } from "./ethWatcher";
 import RegistryIDL from "../../target/idl/prova_registry.json";
 import ExecutorIDL from "../../target/idl/prova_executor.json";
 import { TOKEN_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
+} from "@solana/spl-token";
 
 export class SolanaSubmitter {
   private connection: Connection;
@@ -203,7 +207,31 @@ export class SolanaSubmitter {
       nonce: new BN(nonceBuf.toString("hex"), 16),
     };
   }
+  async getOrCreateATA(
+    mint: PublicKey,
+    owner: PublicKey,
+  ): Promise<{
+    ata: PublicKey;
+    createIx: TransactionInstruction | null;
+  }> {
+    const ata = await getAssociatedTokenAddress(mint, owner);
 
+    const info = await this.connection.getAccountInfo(ata);
+
+    if (!info) {
+      return {
+        ata,
+        createIx: createAssociatedTokenAccountInstruction(
+          this.monitorKeypair.publicKey,
+          ata,
+          owner,
+          mint,
+        ),
+      };
+    }
+
+    return { ata, createIx: null };
+  }
   private async submitProofTx(
     rule: ActiveRule,
     rulePda: PublicKey,
@@ -231,8 +259,7 @@ export class SolanaSubmitter {
       this.executorProgram.programId,
     );
 
-    const { getAssociatedTokenAddress } = await import("@solana/spl-token");
-    const recipientTokenAccount = await getAssociatedTokenAddress(
+    const recipientTokenAccount = await this.getOrCreateATA(
       tokenMint,
       new PublicKey(rule.recipient),
     );
@@ -323,17 +350,21 @@ export class SolanaSubmitter {
         nonce,
       )
       .preInstructions([
+        ...(recipientTokenAccount.createIx
+          ? [recipientTokenAccount.createIx]
+          : []),
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({
           microLamports: 1,
         }),
       ])
+
       .accountsStrict({
         feePayer: this.monitorKeypair.publicKey,
         pendingExecution,
         vaultTokenAccount,
         vaultAuthority,
-        recipientTokenAccount,
+        recipientTokenAccount: recipientTokenAccount.ata,
         ruleTokenMint: new PublicKey(rule.tokenMint),
         computationAccount: getComputationAccAddress(
           clusterOffset,
