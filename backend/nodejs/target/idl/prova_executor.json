@@ -365,7 +365,7 @@
     {
       "code": 6000,
       "name": "InvalidProof",
-      "msg": "SP1 proof verification failed"
+      "msg": "Proof verification failed"
     },
     {
       "code": 6001,
