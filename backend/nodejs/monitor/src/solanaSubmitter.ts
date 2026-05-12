@@ -291,7 +291,7 @@ export class SolanaSubmitter {
       .submitProofAndExecute(
         Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
         Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
-
+        Array.from(ruleIdBytes),
         Buffer.from(rule.watchAddress.replace(/^0x/, ""), "hex"),
 
         thresholdBuf,
