@@ -354,6 +354,7 @@ arcium deploy \
   --cluster-offset 456 \
   --recovery-set-size 4 \
   --rpc-url https://solana-devnet.g.alchemy.com/v2/pkf1MmFFP3jrtqw0BR7vCInGmCeUFwO7 \
+  --program-name prova_executor \
   --resume
 ```
 
@@ -703,3 +704,83 @@ echo "ulimit -n 1048576" >> ~/.zshrc
 ## License
 
 MIT — built for the Solana Frontier Hackathon 2026.
+
+
+(base) dave@Davids-MacBook-Pro monitor % yarn dev
+yarn run v1.22.22
+warning ../../../../package.json: No license field
+$ tsx monitor/src/index.ts
+2026-05-12T00:48:32.289Z [info] 🚀 Prova Monitor starting...
+2026-05-12T00:48:32.291Z [info] Config {"solanaRpc":"https://api.devnet.solana.com","proverMode":"local","cluster":"devnet"}
+2026-05-12T00:48:32.327Z [info] Monitor keypair {"pubkey":"FUPu8ecwzzRQgPLXhnsDaCwpiTVEEpXcd1rYe4sMLxvV"}
+2026-05-12T00:48:32.330Z [info] Initialized Ethereum watcher
+2026-05-12T00:48:32.393Z [info] ✅ Gnark WASM loaded {"size":20574083}
+2026-05-12T00:48:32.393Z [info] Initialized proof generator
+2026-05-12T00:48:32.407Z [info] Initialized Solana submitter
+2026-05-12T00:48:32.408Z [info] Initialized registry loader
+2026-05-12T00:48:32.408Z [info] Loading active rules from registry...
+2026-05-12T00:48:32.987Z [info] Loaded 1 active rules
+2026-05-12T00:48:32.988Z [info] Watching rule {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","address":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483"}
+2026-05-12T00:48:32.991Z [info] ETH watcher started {"interval":12000}
+2026-05-12T00:48:32.994Z [info] ✓ Monitor running {"activeRules":1,"polling":"every 12s"}
+2026-05-12T00:48:33.701Z [info] Balance check {"ruleId":"0xee0ed8f0","address":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483","balance":"0.000015750000483 ETH","threshold":"0.001 ETH","block":10835925,"triggered":true}
+2026-05-12T00:48:33.701Z [info] 🔔 Condition triggered! {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","balance":"15750000483000","threshold":"1000000000000000","block":10835925}
+2026-05-12T00:48:33.701Z [info] Stopped watching rule {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7"}
+2026-05-12T00:48:33.702Z [info] ⚡ Processing trigger {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","block":10835925,"balance":"15750000483000","threshold":"1000000000000000"}
+2026-05-12T00:48:33.702Z [info] Generating proof... {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","wallet":"0x7e7ec6ab36617a8004737d2382785b8b0ee40483","block":10835925}
+2026-05-12T00:48:33.702Z [info] Initializing Noir...
+2026-05-12T00:48:33.721Z [info] ✅ Noir initialized
+WASM Proof Generator Ready
+Available functions:
+  - initCircuit(ccsBytes, pkBytes, witnessBytes)
+  - generateProof()
+2026-05-12T00:48:34.115Z [info] ✅ Gnark runtime initialized
+2026-05-12T00:48:34.792Z [info] Executing Noir circuit...
+2026-05-12T00:48:36.257Z [info] ✅ Witness generated
+2026-05-12T00:48:36.259Z [info] Running CLI prover...
+2026-05-12T00:48:36.298Z [info] 📦 Loading files...
+
+2026-05-12T00:48:36.895Z [info] ✅ CCS loaded
+
+2026-05-12T00:49:27.677Z [info] ✅ PK loaded
+
+2026-05-12T00:49:27.919Z [info] ✅ ACIR loaded
+📦 Loading witness...
+
+2026-05-12T00:49:28.760Z [info] ✅ Witness built
+⚡ Generating proof...
+
+2026-05-12T00:49:32.075Z [info] 01:49:32 DBG constraint system solver done nbConstraints=3392420 took=3313.737
+
+2026-05-12T00:49:49.396Z [info] 01:49:49 DBG prover done acceleration=none backend=groth16 curve=bn254 nbConstraints=3392420 took=17320.235375
+
+2026-05-12T00:49:49.398Z [info] 🎉 Proof saved (JSON HEX) to: /Users/dave/Work/prova/backend/nodejs/tmp_proof.bin
+
+2026-05-12T00:49:50.115Z [info] ✅ Proof generated in 76.41s
+2026-05-12T00:49:50.121Z [info] Submitting proof to Solana... {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7"}
+2026-05-12T00:49:50.124Z [info] Marking rule as triggered on-chain...
+2026-05-12T00:49:50.614Z [info] Current rule status: proving
+2026-05-12T00:49:50.614Z [warn] Rule is already in triggered/proving/executed state, skipping markTriggered
+2026-05-12T00:49:50.779Z [info] Current rule status: proving
+2026-05-12T00:49:50.779Z [warn] Rule is already in proving/executed state, skipping markProving
+watchAddress length: 20
+thresholdWei length: 32
+encryptedAmount 32
+encryptedRecipient 32
+pubKey 32
+nonce byteLength 16
+nonce hex 2010e3d4d10c305b2f1e08c16525a351
+computationOffset bytes 8
+computationOffset 1299732652528576905
+encryptedAmount len = 32
+encryptedRecipient len = 32
+pubKey len = 32
+ruleId len = 32
+watchbuf len = 20
+thresholdBuf len = 32
+2026-05-12T00:49:52.430Z [info] Proof tx queued {"queueSig":"5RRc6b3Q2qznphvWE93NGDxF4iieDTorMpVSEVbZPw2aai1qdEyiaC97Vx68pxZqrc5wjs45E6gmgn4jJd7KQ489"}
+2026-05-12T00:49:52.430Z [info] Waiting for Arcium MXE computation...
+2026-05-12T00:50:12.878Z [info] ✓ Arcium computation finalized {"finalizeSig":"377ULQjZtHyVgSCX9eZzCgu9sksMrbgfqE5Kg6X4pnjqwj6XT3Q96N1orKZR1XA46dKYAvmLb19EDr2jKz3Fjdqj"}
+2026-05-12T00:50:12.878Z [info] ✅ Rule fully executed! {"ruleId":"0xee0ed8f040d2625cecf59cb974de8cd3024a8c4786a5640cc5238fc5af98eeb7","finalizeSig":"377ULQjZtHyVgSCX9eZzCgu9sksMrbgfqE5Kg6X4pnjqwj6XT3Q96N1orKZR1XA46dKYAvmLb19EDr2jKz3Fjdqj"}
+
+real logs

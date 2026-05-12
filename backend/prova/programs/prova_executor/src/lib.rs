@@ -350,7 +350,7 @@ pub struct SubmitProofAndExecute<'info> {
     pub fee_payer: Signer<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = fee_payer,
         space = PendingExecution::LEN,
         seeds = [PENDING_SEED, &rule_id],
