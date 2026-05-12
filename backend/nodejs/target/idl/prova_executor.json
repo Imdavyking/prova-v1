@@ -255,14 +255,6 @@
       ],
       "args": [
         {
-          "name": "proof_bytes",
-          "type": "bytes"
-        },
-        {
-          "name": "public_values",
-          "type": "bytes"
-        },
-        {
           "name": "rule_id",
           "type": {
             "array": ["u8", 32]

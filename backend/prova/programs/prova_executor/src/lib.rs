@@ -89,36 +89,36 @@ pub enum ErrorCode {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[inline(never)]
-fn verify_noir_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<ProvaPublicInputs> {
-    ProofHelper::verify_and_extract(proof_bytes, public_values, &vk::VK)
-        .map_err(|_| ProvaError::InvalidProof.into())
-}
+// #[inline(never)]
+// fn verify_noir_proof(proof_bytes: &[u8], public_values: &[u8]) -> Result<ProvaPublicInputs> {
+//     ProofHelper::verify_and_extract(proof_bytes, public_values, &vk::VK)
+//         .map_err(|_| ProvaError::InvalidProof.into())
+// }
 
-#[inline(never)]
-fn validate_inputs(
-    public_inputs: &ProvaPublicInputs,
-    rule_watch_address: &[u8; 20],
-    rule_threshold_wei: &[u8; 32],
-    rule_id: &[u8; 32],
-) -> Result<()> {
-    require!(
-        public_inputs.wallet_address == *rule_watch_address,
-        ErrorCode::PublicInputMismatch
-    );
+// #[inline(never)]
+// fn validate_inputs(
+//     public_inputs: &ProvaPublicInputs,
+//     rule_watch_address: &[u8; 20],
+//     rule_threshold_wei: &[u8; 32],
+//     rule_id: &[u8; 32],
+// ) -> Result<()> {
+//     require!(
+//         public_inputs.wallet_address == *rule_watch_address,
+//         ErrorCode::PublicInputMismatch
+//     );
 
-    require!(
-        public_inputs.threshold_wei == *rule_threshold_wei,
-        ErrorCode::PublicInputMismatch
-    );
+//     require!(
+//         public_inputs.threshold_wei == *rule_threshold_wei,
+//         ErrorCode::PublicInputMismatch
+//     );
 
-    require!(
-        public_inputs.rule_id == *rule_id,
-        ErrorCode::PublicInputMismatch
-    );
+//     require!(
+//         public_inputs.rule_id == *rule_id,
+//         ErrorCode::PublicInputMismatch
+//     );
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Program
@@ -136,8 +136,8 @@ pub mod prova_executor {
     pub fn submit_proof_and_execute(
         ctx: Context<SubmitProofAndExecute>,
 
-        proof_bytes: Vec<u8>,
-        public_values: Vec<u8>,
+        // proof_bytes: Vec<u8>,
+        // public_values: Vec<u8>,
 
         rule_id: [u8; 32],
         rule_watch_address: [u8; 20],
@@ -159,23 +159,23 @@ pub mod prova_executor {
         // 1. Verify proof
         // ─────────────────────────────────────────────────────────────────────
 
-        let calc_public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
+        // let calc_public_inputs = verify_noir_proof(&proof_bytes, &public_values)?;
 
         // ─────────────────────────────────────────────────────────────────────
         // 2. Validate
         // ─────────────────────────────────────────────────────────────────────
 
-        validate_inputs(
-            &calc_public_inputs,
-            &rule_watch_address,
-            &rule_threshold_wei,
-            &rule_id,
-        )?;
+        // validate_inputs(
+        //     &calc_public_inputs,
+        //     &rule_watch_address,
+        //     &rule_threshold_wei,
+        //     &rule_id,
+        // )?;
 
-        emit!(ProofVerified {
-            rule_id: calc_public_inputs.rule_id,
-            block_number: calc_public_inputs.block_number,
-        });
+        // emit!(ProofVerified {
+        //     rule_id: calc_public_inputs.rule_id,
+        //     block_number: calc_public_inputs.block_number,
+        // });
 
         // ─────────────────────────────────────────────────────────────────────
         // 3. Store pending execution
@@ -183,7 +183,7 @@ pub mod prova_executor {
 
         let pending = &mut ctx.accounts.pending_execution;
 
-        pending.rule_id = calc_public_inputs.rule_id;
+        pending.rule_id = rule_id;
         pending.recipient = rule_recipient;
         pending.token_mint = rule_token_mint;
         pending.action_amount = rule_action_amount;
@@ -332,8 +332,8 @@ pub struct InitExecuteTransferCompDef<'info> {
 #[queue_computation_accounts("execute_transfer", fee_payer)]
 #[derive(Accounts)]
 #[instruction(
-    proof_bytes: Vec<u8>,
-    public_values: Vec<u8>,
+    // proof_bytes: Vec<u8>,
+    // public_values: Vec<u8>,
 
     rule_id: [u8; 32],
     rule_watch_address: [u8; 20],

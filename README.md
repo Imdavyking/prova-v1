@@ -353,7 +353,8 @@ arcium deploy \
   --keypair-path ~/.config/solana/id.json \
   --cluster-offset 456 \
   --recovery-set-size 4 \
-  --rpc-url https://solana-devnet.g.alchemy.com/v2/YOUR_KEY
+  --rpc-url https://solana-devnet.g.alchemy.com/v2/pkf1MmFFP3jrtqw0BR7vCInGmCeUFwO7 \
+  --program-name prova_executor
 ```
 
 ```bash

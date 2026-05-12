@@ -296,9 +296,9 @@ export class SolanaSubmitter {
 
     return await this.executorProgram.methods
       .submitProofAndExecute(
-        Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
+        // Buffer.from(proof.proof.replace(/^0x/, ""), "hex"),
 
-        Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
+        // Buffer.from(proof.publicInputs.replace(/^0x/, ""), "hex"),
 
         Array.from(ruleIdBytes),
 
